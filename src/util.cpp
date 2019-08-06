@@ -28,6 +28,8 @@
 #include "reports/htmlbuilder.h"
 #include "Model_Infotable.h"
 #include "Model_Setting.h"
+#include "Model_CurrencyHistory.h"
+#include "Model_Currency.h"
 #include "wx_compat.h"
 #include <wx/sstream.h>
 #include <wx/xml/xml.h>
@@ -515,6 +517,110 @@ const wxString getProgramDescription(bool simple)
 
 /* Currencies & stock prices */
 
+bool GetOnlineCurrencyRates(wxString& msg, int curr_id, bool used_only)
+{
+    wxString base_currency_symbol;
+
+    if (!Model_Currency::GetBaseCurrencySymbol(base_currency_symbol))
+    {
+        msg = _("Could not find base currency symbol!");
+        return false;
+    }
+
+    std::vector<wxString> fiat;
+    std::vector<wxString> crypto;
+
+    const auto& crypto_type = Model_Currency::currtype_desc(Model_Currency::CRYPTO);
+    auto currencies = Model_Currency::instance().find(Model_Currency::CURRENCY_SYMBOL(base_currency_symbol, NOT_EQUAL));
+    for (const auto& currency : currencies)
+    {
+        if (curr_id > 0 && currency.CURRENCYID != curr_id)
+            continue;
+        if (curr_id < 0 && !Model_Account::is_used(currency))
+            continue;
+        const auto symbol = currency.CURRENCY_SYMBOL;
+        if (symbol.IsEmpty())
+            continue;
+
+        if (currency.CURRENCY_TYPE == crypto_type)
+            crypto.push_back(symbol);
+        else
+            fiat.push_back(symbol);
+    }
+
+    wxString output;
+    std::map<wxString, double> currency_data;
+
+
+    if (!fiat.empty())
+    {
+        if (!get_yahoo_prices(fiat, currency_data, base_currency_symbol, output, yahoo_price_type::FIAT))
+        {
+            msg = output;
+        }
+    }
+
+    if (!crypto.empty())
+    {
+        double usd_rate = 1;
+        if (base_currency_symbol != "USD")
+        {
+            usd_rate = 0;
+            std::map<wxString, double> usd_data;
+            std::vector<wxString> usd_sign = { "USD" };
+            if (!get_yahoo_prices(usd_sign, usd_data, base_currency_symbol, output, yahoo_price_type::FIAT))
+            {
+                msg = output;
+            }
+            else
+            {
+                usd_rate = usd_data["USD"];
+            }
+        }
+
+        if (!get_crypto_currency_prices(crypto, usd_rate, currency_data, output))
+        {
+            msg = output;
+        }
+    }
+
+    if (fiat.empty() && crypto.empty())
+    {
+        msg = _("Nothing to update");
+        return false;
+    }
+
+    msg = _("Currency rates have been updated");
+    msg << "\n\n";
+
+    const wxDateTime today = wxDateTime::Today();
+    Model_CurrencyHistory::instance().Savepoint();
+    for (auto& currency : currencies)
+    {
+        if (!used_only && !Model_Account::is_used(currency)) continue;
+
+        const wxString currency_symbol = currency.CURRENCY_SYMBOL;
+        if (!currency_symbol.IsEmpty())
+        {
+            if (currency_data.find(currency_symbol) != currency_data.end())
+            {
+                double new_rate = currency_data[currency_symbol];
+                if (new_rate > 0)
+                {
+                    msg << wxString::Format("%s\t -> %0.6f\n", currency_symbol, new_rate);
+                    Model_CurrencyHistory::instance().addUpdate(currency.CURRENCYID, today, new_rate, Model_CurrencyHistory::ONLINE);
+                }
+                else
+                    msg << wxString::Format("%s\t -> %s\n", currency_symbol, _("Invalid value"));
+            }
+        }
+    }
+
+    Model_CurrencyHistory::instance().ReleaseSavepoint();
+
+    return true;
+}
+
 bool get_yahoo_prices(std::vector<wxString>& symbols
     , std::map<wxString, double>& out
     , const wxString base_currency_symbol
@@ -634,10 +740,10 @@ bool get_crypto_currency_prices(std::vector<wxString>& symbols, double& usd_rate
     Document json_doc;
     if (json_doc.Parse(json_data.c_str()).HasParseError())
         return false;
-
-    if (!json_doc.IsArray())
+    if (!json_doc.HasMember("data") && !json_doc["data"].IsArray())
         return false;
-    Value e = json_doc.GetArray();
+
+    Value e = json_doc["data"].GetArray();
 
     std::map<wxString, float> all_crypto_data;
 
@@ -647,12 +753,14 @@ bool get_crypto_currency_prices(std::vector<wxString>& symbols, double& usd_rate
             continue;
         Value v = e[i].GetObject();
 
-        if (!v["short"].IsString())  continue;
-        auto currency_symbol = wxString::FromUTF8(v["short"].GetString());
-        if (!v["price"].IsFloat()) continue;
-        auto price = v["price"].GetFloat();
-        all_crypto_data[currency_symbol] = price;
-        wxLogDebug("item: %u %s %.8f", i, currency_symbol, price);
+        if (!v["symbol"].IsString())  continue;
+        auto currency_symbol = wxString::FromUTF8(v["symbol"].GetString());
+        if (!v["priceUsd"].IsString()) continue;
+        auto price_str = wxString::FromUTF8(v["priceUsd"].GetString());
+        double amount;
+        price_str.ToCDouble(&amount);
+        all_crypto_data[currency_symbol] = amount;
+        wxLogDebug("item: %u %s %s = %.8f", i, currency_symbol, price_str, amount);
     }
 
     for (auto& entry : symbols)
@@ -663,7 +771,7 @@ bool get_crypto_currency_prices(std::vector<wxString>& symbols, double& usd_rate
             ok = true;
         }
         else
-            output << entry << "\t: " << _("Invalid value") << "\n";
+            out[entry] = -1;
     }
 
     return ok;
