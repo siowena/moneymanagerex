@@ -64,7 +64,6 @@ const std::vector<std::pair<int, wxString> > mmBDDialog::BILLSDEPOSITS_REPEATS =
     { EVERYXMONTHS, wxTRANSLATE("Every (x) Months")},
     { MONTHLYLASTDAY, wxTRANSLATE("Monthly (last day)")},
     { MONTHLYLASTBUSINESSDAY, wxTRANSLATE("Monthly (last business day)")}
-
 };
 
 wxIMPLEMENT_DYNAMIC_CLASS(mmBDDialog, wxDialog);
@@ -91,7 +90,6 @@ wxBEGIN_EVENT_TABLE(mmBDDialog, wxDialog)
     EVT_MENU(wxID_ANY, mmBDDialog::onNoteSelected)
     EVT_CLOSE(mmBDDialog::OnQuit)
 wxEND_EVENT_TABLE()
-
 
 mmBDDialog::mmBDDialog()
 {
@@ -1023,7 +1021,7 @@ void mmBDDialog::OnOk(wxCommandEvent& WXUNUSED(event))
         bill->NEXTOCCURRENCEDATE = m_bill_data.NEXTOCCURRENCEDATE;
         bill->NUMOCCURRENCES = m_bill_data.NUMOCCURRENCES;
 
-        transID_ = Model_Billsdeposits::instance().save(bill);
+        transID_ = Model_Billsdeposits::instance().save(bill); // Save the transaction ???
 
         Model_Budgetsplittransaction::Data_Set splt;
         for (const auto& entry : m_bill_data.local_splits)
@@ -1034,7 +1032,7 @@ void mmBDDialog::OnOk(wxCommandEvent& WXUNUSED(event))
             s->SPLITTRANSAMOUNT = entry.SPLITTRANSAMOUNT;
             splt.push_back(*s);
         }
-        Model_Budgetsplittransaction::instance().update(splt, transID_);
+        Model_Budgetsplittransaction::instance().update(splt, transID_); // Saving the Transaction Split ???
 
         const wxString& RefType = Model_Attachment::reftype_desc(Model_Attachment::BILLSDEPOSIT);
         mmAttachmentManage::RelocateAllAttachments(RefType, 0, transID_);
