@@ -314,7 +314,7 @@ mmGUIFrame::~mmGUIFrame()
     }
 
     // Report database statistics
-    for (const auto & model : this->m_all_models)
+    for (const auto & model : m_all_models)
     {
         model->show_statistics();
         Model_Usage::instance().AppendToCache(model->GetTableStatsAsJson());
@@ -571,18 +571,18 @@ void mmGUIFrame::saveSettings()
     Model_Setting::instance().Set("AUIPERSPECTIVE", m_mgr.SavePerspective());
 
     // prevent values being saved while window is in an iconised state.
-    if (this->IsIconized()) this->Restore();
+    if (IsIconized()) Restore();
 
     int value_x = 0, value_y = 0;
-    this->GetPosition(&value_x, &value_y);
+    GetPosition(&value_x, &value_y);
     Model_Setting::instance().Set("ORIGINX", value_x);
     Model_Setting::instance().Set("ORIGINY", value_y);
 
     int value_w = 0, value_h = 0;
-    this->GetSize(&value_w, &value_h);
+    GetSize(&value_w, &value_h);
     Model_Setting::instance().Set("SIZEW", value_w);
     Model_Setting::instance().Set("SIZEH", value_h);
-    Model_Setting::instance().Set("ISMAXIMIZED", this->IsMaximized());
+    Model_Setting::instance().Set("ISMAXIMIZED", IsMaximized());
     Model_Setting::instance().ReleaseSavepoint();
 }
 //----------------------------------------------------------------------------
@@ -764,7 +764,7 @@ void mmGUIFrame::updateNavTreeControl()
     m_nav_tree_ctrl->SetItemBold(reports, true);
     m_nav_tree_ctrl->SetItemData(reports, new mmTreeItemData("Reports"));
 
-    this->updateReportNavigation(reports, have_budget);
+    updateReportNavigation(reports, have_budget);
 
     ///////////////////////////////////////////////////////////////////
 
@@ -1336,8 +1336,7 @@ void mmGUIFrame::createBudgetingPage(int budgetYearID)
     json_writer.Key("module");
     json_writer.String("Budget Panel");
 
-    json_writer.Key("start");
-    json_writer.String(wxDateTime::Now().FormatISOCombined().c_str());
+    const auto time = wxDateTime::UNow();
 
     m_nav_tree_ctrl->SetEvtHandlerEnabled(false);
     if (panelCurrent_->GetId() == mmID_BUDGET)
@@ -1358,8 +1357,8 @@ void mmGUIFrame::createBudgetingPage(int budgetYearID)
         windowsFreezeThaw(homePanel_);
     }
 
-    json_writer.Key("end");
-    json_writer.String(wxDateTime::Now().FormatISOCombined().c_str());
+    json_writer.Key("seconds");
+    json_writer.Double((wxDateTime::UNow()-time).GetMilliseconds().ToDouble()/1000);
     json_writer.EndObject();
 
     Model_Usage::instance().AppendToUsage(json_buffer.GetString());
@@ -1378,8 +1377,7 @@ void mmGUIFrame::createHomePage()
     json_writer.Key("module");
     json_writer.String("Home Page");
 
-    json_writer.Key("start");
-    json_writer.String(wxDateTime::Now().FormatISOCombined().c_str());
+    const auto time = wxDateTime::UNow();
 
     m_nav_tree_ctrl->SetEvtHandlerEnabled(false);
     int id = panelCurrent_ ? panelCurrent_->GetId() : -1;
@@ -1406,12 +1404,11 @@ void mmGUIFrame::createHomePage()
         m_nav_tree_ctrl->SelectItem(m_nav_tree_ctrl->GetRootItem());
     m_nav_tree_ctrl->SetEvtHandlerEnabled(true);
 
-    json_writer.Key("end");
-    json_writer.String(wxDateTime::Now().FormatISOCombined().c_str());
+    json_writer.Key("seconds");
+    json_writer.Double((wxDateTime::UNow()-time).GetMilliseconds().ToDouble()/1000);
     json_writer.EndObject();
 
-    const auto  j = json_buffer.GetString();
-    Model_Usage::instance().AppendToUsage(j);
+    Model_Usage::instance().AppendToUsage(json_buffer.GetString());
 }
 //----------------------------------------------------------------------------
 
@@ -1913,7 +1910,7 @@ bool mmGUIFrame::createDataStore(const wxString& fileName, const bool openingNew
 
     if (m_db)
     {
-        this->SetTitle(mmex::getCaption(mmex::isPortableMode() ? _("[portable mode]") : ""));
+        SetTitle(mmex::getCaption(mmex::isPortableMode() ? _("[portable mode]") : ""));
         resetNavTreeControl();
         cleanupHomePanel(false);
         menuEnableItems(false);
@@ -2256,7 +2253,7 @@ void mmGUIFrame::OnImportQIF(wxCommandEvent& WXUNUSED(event))
         Model_Account::Data* account = Model_Account::instance().get(account_id);
         setAccountNavTreeSection(account->ACCOUNTNAME);
         wxCommandEvent evt(wxEVT_COMMAND_MENU_SELECTED, MENU_GOTOACCOUNT);
-        this->GetEventHandler()->AddPendingEvent(evt);
+        GetEventHandler()->AddPendingEvent(evt);
     }
     else
     {
@@ -2513,7 +2510,7 @@ void mmGUIFrame::OnOptions(wxCommandEvent& WXUNUSED(event))
 {
     if (!m_db.get()) return;
 
-    mmOptionsDialog systemOptions(this, this->m_app);
+    mmOptionsDialog systemOptions(this, m_app);
     if (systemOptions.ShowModal() == wxID_OK)
     {
         //set the View Menu Option items the same as the options saved.
@@ -2667,8 +2664,7 @@ void mmGUIFrame::createBillsDeposits()
     json_writer.Key("module");
     json_writer.String("Bills & Deposits Panel");
 
-    json_writer.Key("start");
-    json_writer.String(wxDateTime::Now().FormatISOCombined().c_str());
+    const auto time = wxDateTime::UNow();
 
     if (panelCurrent_->GetId() == mmID_BILLS)
     {
@@ -2687,8 +2683,8 @@ void mmGUIFrame::createBillsDeposits()
         menuPrintingEnable(true);
     }
 
-    json_writer.Key("end");
-    json_writer.String(wxDateTime::Now().FormatISOCombined().c_str());
+    json_writer.Key("seconds");
+    json_writer.Double((wxDateTime::UNow()-time).GetMilliseconds().ToDouble()/1000);
     json_writer.EndObject();
 
     Model_Usage::instance().AppendToUsage(json_buffer.GetString());
@@ -2704,8 +2700,7 @@ void mmGUIFrame::createCheckingAccountPage(int accountID)
     json_writer.Key("module");
     json_writer.String("Checking Panel");
 
-    json_writer.Key("start");
-    json_writer.String(wxDateTime::Now().FormatISOCombined().c_str());
+    const auto time = wxDateTime::UNow();
 
     if (panelCurrent_->GetId() == mmID_CHECKING)
     {
@@ -2723,8 +2718,8 @@ void mmGUIFrame::createCheckingAccountPage(int accountID)
         windowsFreezeThaw(homePanel_);
     }
 
-    json_writer.Key("end");
-    json_writer.String(wxDateTime::Now().FormatISOCombined().c_str());
+    json_writer.Key("seconds");
+    json_writer.Double((wxDateTime::UNow()-time).GetMilliseconds().ToDouble()/1000);
     json_writer.EndObject();
 
     Model_Usage::instance().AppendToUsage(json_buffer.GetString());
@@ -2745,8 +2740,7 @@ void mmGUIFrame::createStocksAccountPage(int accountID)
     json_writer.Key("module");
     json_writer.String("Stock Panel");
 
-    json_writer.Key("start");
-    json_writer.String(wxDateTime::Now().FormatISOCombined().c_str());
+    const auto time = wxDateTime::UNow();
 
     if (panelCurrent_->GetId() == mmID_STOCKS)
     {
@@ -2764,8 +2758,8 @@ void mmGUIFrame::createStocksAccountPage(int accountID)
         windowsFreezeThaw(homePanel_);
     }
 
-    json_writer.Key("end");
-    json_writer.String(wxDateTime::Now().FormatISOCombined().c_str());
+    json_writer.Key("seconds");
+    json_writer.Double((wxDateTime::UNow()-time).GetMilliseconds().ToDouble()/1000);
     json_writer.EndObject();
 
     Model_Usage::instance().AppendToUsage(json_buffer.GetString());
@@ -2802,8 +2796,7 @@ void mmGUIFrame::OnAssets(wxCommandEvent& WXUNUSED(event))
     json_writer.Key("module");
     json_writer.String("Asset Panel");
 
-    json_writer.Key("start");
-    json_writer.String(wxDateTime::Now().FormatISOCombined().c_str());
+    const auto time = wxDateTime::UNow();
 
     windowsFreezeThaw(homePanel_);
     wxSizer *sizer = cleanupHomePanel();
@@ -2813,8 +2806,8 @@ void mmGUIFrame::OnAssets(wxCommandEvent& WXUNUSED(event))
     windowsFreezeThaw(homePanel_);
     menuPrintingEnable(true);
 
-    json_writer.Key("end");
-    json_writer.String(wxDateTime::Now().FormatISOCombined().c_str());
+    json_writer.Key("seconds");
+    json_writer.Double((wxDateTime::UNow()-time).GetMilliseconds().ToDouble()/1000);
     json_writer.EndObject();
 
     Model_Usage::instance().AppendToUsage(json_buffer.GetString());
@@ -3134,7 +3127,7 @@ void mmGUIFrame::setGotoAccountID(int account_id, long transID)
 void mmGUIFrame::OnToggleFullScreen(wxCommandEvent& WXUNUSED(event))
 {
 #if (wxMAJOR_VERSION >= 3 && wxMINOR_VERSION >= 0)
-   this->ShowFullScreen(!IsFullScreen());
+   ShowFullScreen(!IsFullScreen());
 #endif
 }
 
