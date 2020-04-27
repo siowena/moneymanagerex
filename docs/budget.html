@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script>
+        var dir = 'en';
+        var regex = new RegExp("[\\?&]lang=([^&]*)");
+        var lang = regex.exec(window.location.search);
+        if (lang && /^(it|es|ru)$/.test(lang[1]))
+            dir = lang[1];
+        window.location.replace(dir + "/budget.html");
+    </script>
+</head>
+</html>
