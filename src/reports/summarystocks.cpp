@@ -31,21 +31,12 @@
 
 #include <algorithm>
 
-#define STOCK_SORT_BY_NAME          1
-#define STOCK_SORT_BY_SYMBOL        2
-#define STOCK_SORT_BY_DATE          3
-#define STOCK_SORT_BY_QTY           4
-#define STOCK_SORT_BY_PUR_PRICE     5
-#define STOCK_SORT_BY_CUR_PRICE     6
-#define STOCK_SORT_BY_COMMISSION    7
-#define STOCK_SORT_BY_GAIN_LOSS     8
-#define STOCK_SORT_BY_VALUE         9
-
 mmReportSummaryStocks::mmReportSummaryStocks()
     : mmPrintableBase(_("Summary of Stocks"))
     , m_gain_loss_sum_total(0.0)
     , m_stock_balance(0.0)
 {
+    setReportParameters(Reports::StocksReportSummary);
 }
 
 void  mmReportSummaryStocks::RefreshData()
@@ -56,7 +47,7 @@ void  mmReportSummaryStocks::RefreshData()
 
     data_holder line;
     account_holder account;
-    const auto today = wxDate::Today().FormatISODate();
+    const wxDate today = wxDate::Today();
 
     for (const auto& a : Model_Account::instance().all(Model_Account::COL_ACCOUNTNAME))
     {
@@ -192,15 +183,11 @@ void mmReportSummaryStocks::display_header(mmHTMLBuilder& hb)
 mmReportChartStocks::mmReportChartStocks()
     : mmPrintableBase(_("Stocks Performance Charts"))
 {
+    setReportParameters(Reports::StocksReportPerformance);
 }
 
 mmReportChartStocks::~mmReportChartStocks()
 {
-}
-
-int mmReportChartStocks::report_parameters()
-{
-    return RepParams::DATE_RANGE;
 }
 
 wxString mmReportChartStocks::getHTMLText()
@@ -216,22 +203,28 @@ wxString mmReportChartStocks::getHTMLText()
         hb.DisplayDateHeading(m_date_range->start_date(), m_date_range->end_date(), true);
     hb.addHorizontalLine();
 
-    bool pointDot = false, showGridLines = false;
     wxTimeSpan dist;
     wxDate precDateDt = wxInvalidDateTime;
-    for (const auto& stock : Model_Stock::instance().all(Model_Stock::COL_HELDAT))
+    wxArrayString symbols;
+    for (const auto& stock : Model_Stock::instance().all(Model_Stock::COL_SYMBOL))
     {
+        if (symbols.Index(stock.SYMBOL) != wxNOT_FOUND) {
+            continue;
+        }
+
+        symbols.Add(stock.SYMBOL);
         int dataCount = 0, freq = 1;
-        Model_StockHistory::Data_Set histData = Model_StockHistory::instance().find(Model_StockHistory::SYMBOL(stock.SYMBOL),
+        auto histData = Model_StockHistory::instance().find(Model_StockHistory::SYMBOL(stock.SYMBOL),
             Model_StockHistory::DATE(m_date_range->start_date(), GREATER_OR_EQUAL),
             Model_StockHistory::DATE(m_date_range->end_date(), LESS_OR_EQUAL));
         std::stable_sort(histData.begin(), histData.end(), SorterByDATE());
-        if (histData.size() <= 30)
-            showGridLines = pointDot = true;
-        else if (histData.size() <= 366)
-            showGridLines = true;
-        else
+
+        bool showGridLines = (histData.size() <= 366);
+        bool pointDot = (histData.size() <= 30);
+        if (histData.size() > 366) {
             freq = histData.size() / 366;
+        }
+
         std::vector<LineGraphData> aData;
         for (const auto& hist : histData)
         {
@@ -239,26 +232,28 @@ wxString mmReportChartStocks::getHTMLText()
             {
                 LineGraphData val;
                 val.xPos = mmGetDateForDisplay(hist.DATE);
-                const wxDate dateDt = Model_StockHistory::DATE(hist);
+                const wxDate d = Model_StockHistory::DATE(hist);
                 if (histData.size() <= 30)
                     val.label = val.xPos;
-                else if (precDateDt.IsValid() && dateDt.GetMonth() != precDateDt.GetMonth())
-                    val.label = wxGetTranslation(dateDt.GetEnglishMonthName(dateDt.GetMonth()));
+                else if (precDateDt.IsValid() && d.GetMonth() != precDateDt.GetMonth())
+                    val.label = wxString::Format("%s %i", wxGetTranslation(wxDateTime::GetEnglishMonthName(d.GetMonth())), d.GetYear());
                 else
                     val.label = "";
+
                 val.amount = hist.VALUE;
                 aData.push_back(val);
-                precDateDt = dateDt;
+                precDateDt = d;
             }
             dataCount++;
         }
+
         if (!aData.empty())
         {
             hb.addDivRow();
             Model_Account::Data* account = Model_Account::instance().get(stock.HELDAT);
-            hb.addHeader(1, wxString::Format("%s - (%s)", stock.STOCKNAME, account->ACCOUNTNAME));
+            hb.addHeader(1, wxString::Format("%s - (%s)", stock.SYMBOL, account->ACCOUNTNAME));
             hb.addDivCol17_67();
-            hb.addLineChart(aData, stock.STOCKNAME, 0, 1000, 400, pointDot, showGridLines);
+            hb.addLineChart(aData, stock.SYMBOL, 0, 1000, 400, pointDot, showGridLines);
             hb.endDiv();
             hb.endDiv();
         }

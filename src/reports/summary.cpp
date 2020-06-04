@@ -117,7 +117,8 @@ double mmHistoryData::getDailyBalanceAt(const Model_Account::Data *account, cons
 mmReportSummaryByDate::mmReportSummaryByDate(int mode)
 : mmPrintableBase("mmReportSummaryByDate")
 , mode_(mode)
-{}
+{
+}
 
 wxString mmReportSummaryByDate::getHTMLText()
 {
@@ -136,8 +137,7 @@ wxString mmReportSummaryByDate::getHTMLText()
 
     hb.init();
     hb.addDivContainer();
-    hb.addHeader(2, wxString::Format(_("Accounts Balance - %s")
-        , mode_ == MONTHLY ? _("Monthly Report") : _("Yearly Report")));
+    hb.addHeader(2, wxString::Format(_("Accounts Balance - %s"), mode_ == MONTHLY ? _("Monthly Report") : _("Yearly Report")));
     hb.addDateNow();
     hb.addLineBreak();
 
@@ -162,7 +162,7 @@ wxString mmReportSummaryByDate::getHTMLText()
     {
         if (Model_Account::type(account) != Model_Account::INVESTMENT)
         {
-            //  in balanceMapVec ci sono i totali dei movimenti giorno per giorno
+            // balanceMapVec contains transactions totals day by day
             const Model_Currency::Data* currency = Model_Account::currency(account);
             for (const auto& tran : Model_Account::transaction(account))
             {
@@ -176,7 +176,7 @@ wxString mmReportSummaryByDate::getHTMLText()
                 if (date.IsEarlierThan(dateStart))
                     dateStart = date;
             }
-            arBalance[i] = account.INITIALBAL * Model_CurrencyHistory::getDayRate(currency->id(), dateStart.FormatISODate());
+            arBalance[i] = account.INITIALBAL * Model_CurrencyHistory::getDayRate(currency->id(), dateStart);
         }
         else
         {
@@ -257,7 +257,7 @@ wxString mmReportSummaryByDate::getHTMLText()
                 double convRate = 1.0;
                 Model_Currency::Data* currency = Model_Account::currency(account);
                 if (currency)
-                    convRate = Model_CurrencyHistory::getDayRate(currency->id(), dd.FormatISODate());
+                    convRate = Model_CurrencyHistory::getDayRate(currency->id(), dd);
                 arBalance[k] = arHistory.getDailyBalanceAt(&account, dd) * convRate;
             }
             k++;
@@ -313,13 +313,17 @@ wxString mmReportSummaryByDate::getHTMLText()
 
     totBalanceData.clear();
 
-	return hb.getHTMLText();
+    return hb.getHTMLText();
 }
 
 mmReportSummaryByDateMontly::mmReportSummaryByDateMontly()
     : mmReportSummaryByDate(MONTHLY)
-{}
+{
+    setReportParameters(Reports::MonthlySummaryofAccounts);
+}
 
 mmReportSummaryByDateYearly::mmReportSummaryByDateYearly()
     : mmReportSummaryByDate(YEARLY)
-{}
+{
+    setReportParameters(Reports::YearlySummaryofAccounts);
+}

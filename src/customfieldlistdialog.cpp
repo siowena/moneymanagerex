@@ -44,14 +44,13 @@ wxEND_EVENT_TABLE()
 mmCustomFieldListDialog::mmCustomFieldListDialog (wxWindow* parent, const wxString& RefType) :
     m_field_id(-1)
     , m_RefType(RefType)
-    , m_refresh(false)
     #ifdef _DEBUG
         , debug_(true)
     #else
         , debug_(false)
     #endif
 {
-    if (debug_) ColName_[FIELD_ID] = _("#");
+    if (debug_) ColName_[FIELD_ID] = "#";
     ColName_[FIELD_DESCRIPTION] = _("Description");
     ColName_[FIELD_TYPE] = _("Type");
     if (debug_) ColName_[FIELD_PROPERTIES] = _("Properties");
@@ -153,7 +152,6 @@ void mmCustomFieldListDialog::AddField()
     if (dlg.ShowModal() != wxID_OK)
         return;
     fillControls();
-    m_refresh = true;
 }
 
 void mmCustomFieldListDialog::EditField()
@@ -165,7 +163,6 @@ void mmCustomFieldListDialog::EditField()
         if (dlg.ShowModal() != wxID_OK)
             return;
         fillControls();
-        m_refresh = true;
     }
 }
 
@@ -183,7 +180,6 @@ void mmCustomFieldListDialog::DeleteField()
             Model_CustomField::instance().Delete(m_field_id);
             m_field_id = -1;
             fillControls();
-            m_refresh = true;
         }
     }
 }
@@ -195,8 +191,8 @@ void mmCustomFieldListDialog::UpdateField()
         return;
 
     int UpdateResponse = wxMessageBox(
-        _("Do you really want to massive update field content?\n"
-            "Please consider that there isn't any validation!")
+        _("This function will massive update (search & replace for entire value, not inside value), please remind that there isn't any validation!\n"
+            "Do you want to proceed?")
         , _("Confirm Custom Field Content Update")
         , wxYES_NO | wxNO_DEFAULT | wxICON_WARNING);
     if (UpdateResponse != wxYES)
@@ -236,7 +232,6 @@ void mmCustomFieldListDialog::UpdateField()
 
     wxMessageBox(wxString::Format(_("%i occurrences founded and replaced!"), static_cast<int>(data.size()))
         , _("Update Custom Field Content"), wxOK | wxICON_INFORMATION);
-    m_refresh = true;
 }
 
 void mmCustomFieldListDialog::OnMenuSelected(wxCommandEvent& event)
@@ -251,7 +246,7 @@ void mmCustomFieldListDialog::OnMenuSelected(wxCommandEvent& event)
     }
 }
 
-void mmCustomFieldListDialog::OnMagicButton(wxCommandEvent& event)
+void mmCustomFieldListDialog::OnMagicButton(wxCommandEvent& WXUNUSED(event))
 {
     wxDataViewEvent evt;
     OnItemRightClick(evt);
@@ -260,7 +255,7 @@ void mmCustomFieldListDialog::OnMagicButton(wxCommandEvent& event)
 void mmCustomFieldListDialog::OnItemRightClick(wxDataViewEvent& event)
 {
     wxCommandEvent evt(wxEVT_COMMAND_MENU_SELECTED, wxID_ANY) ;
-    evt.SetEventObject( this );
+    evt.SetEventObject(this);
 
     Model_CustomField::Data *field = Model_CustomField::instance().get(m_field_id);
 
@@ -283,21 +278,17 @@ void mmCustomFieldListDialog::OnItemRightClick(wxDataViewEvent& event)
     event.Skip();
 }
 
-void mmCustomFieldListDialog::OnListItemActivated(wxDataViewEvent& event)
+void mmCustomFieldListDialog::OnListItemActivated(wxDataViewEvent& WXUNUSED(event))
 {
     mmCustomFieldListDialog::EditField();
 }
 
-void mmCustomFieldListDialog::OnCancel(wxCommandEvent& /*event*/)
+void mmCustomFieldListDialog::OnCancel(wxCommandEvent& WXUNUSED(event))
 {
-    if (m_refresh)
-        wxMessageBox( _("To apply new changes close and re-open Custom Field panel"), _("Custom Field"), wxICON_INFORMATION);
     EndModal(wxID_CANCEL);
 }
 
-void mmCustomFieldListDialog::OnOk(wxCommandEvent& /*event*/)
+void mmCustomFieldListDialog::OnOk(wxCommandEvent& WXUNUSED(event))
 {
-    if (m_refresh)
-        wxMessageBox(_("To apply new changes close and re-open Custom Field panel"), _("Custom Field"), wxICON_INFORMATION);
     EndModal(wxID_OK);
 }

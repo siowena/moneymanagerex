@@ -119,31 +119,57 @@ bool mmex::isPortableMode()
 }
 //----------------------------------------------------------------------------
 
-wxString mmex::getPathDoc(const EDocFile& f)
+wxString mmex::getPathDoc(EDocFile f, bool url)
 {
+    if (f < 0 || f >= DOC_FILES_MAX) f = HTML_INDEX;
     static const wxString files[DOC_FILES_MAX] = {
       "README.TXT",
       "contrib.txt",
       "license.txt",
-      "version.txt",
-      "help/index.html",
-      "help/grm.html",
-      "help/stocks_and_shares.html",
-      "help/budget.html",
+      "help%sindex.html",
+      "help%sindex.html#section11.1",
+      "help%sgrm.html",
+      "help%sstocks_and_shares.html",
+      "help%sbudget.html",
     };
-
-    wxASSERT(f >= 0 && f < DOC_FILES_MAX);
-
     wxString path = files[f];
-    path.Replace("/", wxFileName::GetPathSeparator());
-    return path.Prepend(GetDocDir().GetPathWithSep());
+    wxString section;
+    wxRegEx pattern(R"(^([^#]+)#([^#]+)$)");
+    if (pattern.Matches(path)) {
+        section = pattern.GetMatch(path, 2);
+        path = pattern.GetMatch(path, 1);
+    }
+
+    wxString lang_code = Option::instance().getLanguageISO6391();
+    if (lang_code.empty()) {
+        lang_code = "en";
+    }
+    path = wxString::Format(path, wxFileName::GetPathSeparator() + lang_code + wxFileName::GetPathSeparator());
+
+    wxFileName helpIndexFile(GetDocDir());
+    path.Prepend(helpIndexFile.GetPathWithSep());
+    wxFileName helpFullPath(path);
+
+    if (!helpFullPath.FileExists()) // Load the help file for the given language
+    {
+        path = files[f];
+        path.Replace("%s", wxFileName::GetPathSeparator());
+        wxFileName help(GetDocDir());
+        path.Prepend(help.GetPathWithSep());
+    }
+    if (url)
+        path.Prepend("file://");
+    if (!section.empty()) {
+        path.Append("#" + section);
+    }
+
+    return path;
 }
 //----------------------------------------------------------------------------
 
 wxString mmex::getPathResource(EResFile f)
 {
     static const wxString files[RES_FILES_MAX] = {
-      "mmex.ico",
       "kaching.wav",
       "home_page.htt"
     };
@@ -219,32 +245,16 @@ const wxString mmex::getPathAttachment(const wxString &attachmentsFolder)
     return AttachmentsFolder;
 }
 
+const wxIcon& mmex::getProgramIcon()
+{
+    static wxIcon icon(mmexico_xpm);
+    return icon;
+}
+
 const wxString mmex::getTempFolder()
 {
     const wxString path = mmex::isPortableMode() ? mmex::GetUserDir(false).GetPath() : wxStandardPaths::Get().GetTempDir();
     const wxString folder = mmex::isPortableMode() ? "tmp"
         : wxString::Format("%s_%s_tmp", mmex::GetAppName(), ::wxGetUserId());
     return wxString::Format("%s%s%s%s", path, wxString(wxFILE_SEP_PATH), folder, wxString(wxFILE_SEP_PATH));
-}
-
-const wxString mmex::getReportIndex()
-{
-    return wxString::Format("%sindex%shtml", mmex::getTempFolder(), wxString(wxFILE_SEP_EXT));
-}
-
-//----------------------------------------------------------------------------
-
-const wxIcon& mmex::getProgramIcon()
-{
-    static wxIcon icon(mmexico_xpm);
-    return icon;
-}
-//----------------------------------------------------------------------------
-
-const wxString mmex::getReportFullFileName(const wxString& WXUNUSED(name))
-{
-	// FIXME: remove name param or use it below inplace of "index"
-	return wxString::Format("%s%s%shtml", mmex::getTempFolder()
-		, "index"
-		, wxString(wxFILE_SEP_EXT));
 }

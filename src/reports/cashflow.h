@@ -28,11 +28,10 @@ class mmReportCashFlow : public mmPrintableBase
 {
 public:
     enum TYPE { MONTHLY = 0, DAILY };
-    explicit mmReportCashFlow(TYPE cashflowreporttype);
+    explicit mmReportCashFlow();
     virtual ~mmReportCashFlow();
 
     virtual wxString getHTMLText();
-    virtual int report_parameters();
 
 protected:
     wxString getHTMLText_i();
@@ -52,6 +51,18 @@ protected:
 
     static const int yearsNum_ = 10;
     const wxDateTime today_;
+};
+
+class mmReportCashFlowDaily : public mmReportCashFlow
+{
+public:
+    mmReportCashFlowDaily();
+};
+
+class mmReportCashFlowMonthly : public mmReportCashFlow
+{
+public:
+    mmReportCashFlowMonthly();
 };
 
 #endif // MM_EX_REPORTCASHFLOW_H_

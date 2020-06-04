@@ -35,9 +35,9 @@ Option::Option()
     , m_databaseUpdated(false)
     , m_budgetFinancialYears(false)
     , m_budgetIncludeTransfers(false)
-    , m_budgetSetupWithoutSummaries(false)
     , m_budgetReportWithSummaries(true)
     , m_ignoreFutureTransactions(false)
+    , m_currencyHistoryEnabled(false)
     , m_transPayeeSelection(Option::NONE)
     , m_transCategorySelection(Option::NONE)
     , m_transStatusReconciled(Option::NONE)
@@ -66,6 +66,7 @@ void Option::LoadOptions(bool include_infotable)
         m_financialYearStartMonthString = Model_Infotable::instance().GetStringInfo("FINANCIAL_YEAR_START_MONTH", "7");
         m_sharePrecision = Model_Infotable::instance().GetIntInfo("SHARE_PRECISION", 4);
         m_baseCurrency = Model_Infotable::instance().GetIntInfo("BASECURRENCYID", -1);
+        m_currencyHistoryEnabled = Model_Infotable::instance().GetBoolInfo(INIDB_USE_CURRENCY_HISTORY, false);
         m_budget_days_offset = Model_Infotable::instance().GetIntInfo("BUDGET_DAYS_OFFSET", 0);
         // Ensure that base currency is set for the database.
         while (m_baseCurrency < 1)
@@ -83,7 +84,6 @@ void Option::LoadOptions(bool include_infotable)
 
     m_budgetFinancialYears = Model_Setting::instance().GetBoolSetting(INIDB_BUDGET_FINANCIAL_YEARS, false);
     m_budgetIncludeTransfers = Model_Setting::instance().GetBoolSetting(INIDB_BUDGET_INCLUDE_TRANSFERS, false);
-    m_budgetSetupWithoutSummaries = Model_Setting::instance().GetBoolSetting(INIDB_BUDGET_SETUP_WITHOUT_SUMMARY, false);
     m_budgetReportWithSummaries = Model_Setting::instance().GetBoolSetting(INIDB_BUDGET_SUMMARY_WITHOUT_CATEG, true);
     m_ignoreFutureTransactions = Model_Setting::instance().GetBoolSetting(INIDB_IGNORE_FUTURE_TRANSACTIONS, false);
 
@@ -98,19 +98,7 @@ void Option::LoadOptions(bool include_infotable)
     m_usageStatistics = Model_Setting::instance().GetBoolSetting(INIDB_SEND_USAGE_STATS, true);
 
     m_html_font_size = Model_Setting::instance().GetIntSetting("HTMLSCALE", 100);
-    m_ico_size = 16;
-    if (m_html_font_size >= 300)
-    {
-        m_ico_size = 48;
-    }
-    else if (m_html_font_size >= 200)
-    {
-        m_ico_size = 32;
-    }
-    else if (m_html_font_size >= 150)
-    {
-        m_ico_size = 24;
-    }
+    m_ico_size = Model_Setting::instance().GetIntSetting("ICONSIZE", 16);
 }
 
 void Option::DateFormat(const wxString& dateformat)
@@ -173,6 +161,12 @@ int Option::getBaseCurrencyID()
     return m_baseCurrency;
 }
 
+void Option::CurrencyHistoryEnabled(bool value)
+{
+    Model_Infotable::instance().Set(INIDB_USE_CURRENCY_HISTORY, value);
+    m_currencyHistoryEnabled = value;
+}
+
 void Option::DatabaseUpdated(bool value)
 {
     m_databaseUpdated = value;
@@ -204,17 +198,6 @@ void Option::BudgetIncludeTransfers(bool value)
 bool Option::BudgetIncludeTransfers()
 {
     return m_budgetIncludeTransfers;
-}
-
-void Option::BudgetSetupWithoutSummaries(bool value)
-{
-    Model_Setting::instance().Set(INIDB_BUDGET_SETUP_WITHOUT_SUMMARY, value);
-    m_budgetSetupWithoutSummaries = value;
-}
-
-bool Option::BudgetSetupWithoutSummaries()
-{
-    return m_budgetSetupWithoutSummaries;
 }
 
 void Option::BudgetReportWithSummaries(bool value)
@@ -301,15 +284,26 @@ bool Option::SendUsageStatistics()
     return m_usageStatistics;
 }
 
-void Option::HtmlFontSize(int value)
+void Option::setHTMLFontSizes(int value)
 {
     Model_Setting::instance().Set("HTMLSCALE", value);
     m_html_font_size = value;
 }
 
-int Option::HtmlFontSize()
+void Option::setIconSize(int value)
+{
+    Model_Setting::instance().Set("ICONSIZE", value);
+    m_ico_size = value;
+}
+
+int Option::getHtmlFontSize()
 {
     return m_html_font_size;
+}
+
+int Option::getIconSize()
+{
+    return m_ico_size;
 }
 
 void Option::setBudgetDaysOffset(int value)
@@ -322,16 +316,6 @@ void Option::setBudgetDateOffset(wxDateTime& date) const
 {
     if (m_budget_days_offset != 0)
         date.Add(wxDateSpan::Days(m_budget_days_offset));
-}
-
-void Option::IconSize(int value)
-{
-    m_ico_size = value;
-}
-
-int Option::IconSize()
-{
-    return m_ico_size;
 }
 
 int Option::AccountImageId(int account_id, bool def)

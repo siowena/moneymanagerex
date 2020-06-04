@@ -106,7 +106,7 @@ void mmListCtrl::OnItemResize(wxListEvent& event)
         Model_Setting::instance().Set(wxString::Format(m_col_width, i), width);
 }
 
-void mmListCtrl::OnColClick(wxListEvent& event)
+void mmListCtrl::OnColClick(wxListEvent& WXUNUSED(event))
 {
     // Default to do nothing and implement in derived class
 }
@@ -164,7 +164,7 @@ void mmListCtrl::OnHeaderHide(wxCommandEvent& WXUNUSED(event))
     }
 }
 
-void mmListCtrl::OnHeaderSort(wxCommandEvent& event)
+void mmListCtrl::OnHeaderSort(wxCommandEvent& WXUNUSED(event))
 {
     wxListEvent e;
     e.SetId(MENU_HEADER_SORT);
@@ -236,7 +236,6 @@ void mmPanelBase::PrintPage()
 {
     //this->Freeze();
     wxWebView * htmlWindow = wxWebView::New(this, wxID_ANY);
-    htmlWindow->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new wxWebViewFSHandler("memory")));
     htmlWindow->SetPage(BuildPage(), "");
     htmlWindow->Print();
     htmlWindow->Destroy();

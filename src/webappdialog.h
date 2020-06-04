@@ -31,9 +31,10 @@ class mmWebAppDialog : public wxDialog
     wxDECLARE_EVENT_TABLE();
 
 public:
-    mmWebAppDialog(wxWindow* parent, const wxString& name = "mmWebAppDialog");
-
+    mmWebAppDialog(wxWindow* parent, const bool startup, const wxString& name = "mmWebAppDialog");
+    ~mmWebAppDialog();
     bool getRefreshRequested() const { return refreshRequested_; }
+    void fillControls();
 
 private:
     enum cols
@@ -54,25 +55,38 @@ private:
     {
         MENU_OPEN_ATTACHMENT = 1,
         MENU_IMPORT_WEBTRAN,
+        MENU_IMPORTOPEN_WEBTRAN,
         MENU_DELETE_WEBTRAN
     };
 
+    wxBoxSizer* mainBoxSizer_;
+    wxFlexGridSizer* loadingSizer_;
     wxDataViewListCtrl* webtranListBox_;
     wxSearchCtrl* m_maskTextCtrl;
+    wxTextCtrl* url_text_;
+    wxTextCtrl* guid_text_;
+    wxBitmapButton* net_button_;
+    wxGauge* gauge_;
 
+    wxTimer autoWebAppDialogTimer_;
+
+    wxArrayString tempFiles_;
+    bool refreshRequested_;
+    bool isStartup_;
+    bool isFilledOnce_;
     int m_webtran_id;
     mmWebApp::WebTranVector WebAppTransactions_;
-    bool refreshRequested_;
 
     mmWebAppDialog() : m_webtran_id(-1), refreshRequested_(false) {}
 
     void Create(wxWindow* parent, const wxString& name = "mmWebAppDialog");
     void CreateControls();
-    void fillControls();
+    void OnTimer(wxTimerEvent& /*event*/);
 
     void OnCancel(wxCommandEvent& /*event*/);
     void OnApply(wxCommandEvent& /*event*/);
     void OnOk(wxCommandEvent& /*event*/);
+    void OnCheckNetwork(wxCommandEvent& /*event*/);
 
     bool ImportWebTr(int WebTrID, bool open);
     void ImportAllWebTr(const bool open);
@@ -81,9 +95,10 @@ private:
     void OnMenuSelected(wxCommandEvent& event);
     void OnItemRightClick(wxDataViewEvent& event);
 
-    void ImportWebTrSelected();
+    void ImportWebTrSelected(const bool open);
     void DeleteWebTr();
     void OpenAttachment();
+    void OnButtonHelpClick(wxCommandEvent& WXUNUSED(event));
 };
 
 #endif // MM_EX_PAYEEDIALOG_H_

@@ -583,7 +583,6 @@ void mmStockDialog::OnHistoryImportButton(wxCommandEvent& /*event*/)
     if (m_stock->SYMBOL.IsEmpty())
         return;
 
-    bool canceledbyuser = false;
     const wxString fileName = wxFileSelector(_("Choose CSV data file to import")
         , wxEmptyString, wxEmptyString, wxEmptyString, "*.csv", wxFD_FILE_MUST_EXIST);
     Model_Account::Data *account = Model_Account::instance().get(m_stock->HELDAT);
@@ -600,6 +599,8 @@ void mmStockDialog::OnHistoryImportButton(wxCommandEvent& /*event*/)
         wxProgressDialog* progressDlg = new wxProgressDialog(_("Stock History CSV Import")
             , _("Quotes imported from CSV: "), tFile.GetLineCount()
             , NULL, wxPD_AUTO_HIDE | wxPD_APP_MODAL | wxPD_SMOOTH | wxPD_CAN_ABORT);
+
+        bool canceledbyuser = false;
         long countNumTotal = 0;
         long countImported = 0;
         double price;
@@ -772,7 +773,7 @@ void mmStockDialog::OnHistoryDownloadButton(wxCommandEvent& /*event*/)
     while (true)
     {
         Document json_doc;
-        if (json_doc.Parse(json_data.c_str()).HasParseError()) {
+        if (json_doc.Parse(json_data.utf8_str()).HasParseError()) {
             break;
         }
         else if (!json_doc.HasMember("chart") || !json_doc["chart"].IsObject()) {
@@ -795,7 +796,7 @@ void mmStockDialog::OnHistoryDownloadButton(wxCommandEvent& /*event*/)
 
                 const wxString code = wxString::FromUTF8(e["code"].GetString());
                 const wxString description = wxString::FromUTF8(e["description"].GetString());
-                sOutput = wxString::Format(_("%1$s - %2$s"), code, description);
+                sOutput = wxString::Format("%s - %s", code, description);
                 break;
             }
         }
@@ -906,7 +907,7 @@ void mmStockDialog::OnHistoryAddButton(wxCommandEvent& /*event*/)
     {
         listStr = m_price_listbox->GetItemText(i, 0);
         mmParseDisplayStringToDate(dt, listStr, Option::instance().DateFormat());
-        if (dt.FormatISODate() == m_history_date_ctrl->GetValue().FormatISODate())
+        if (dt.IsSameDate(m_history_date_ctrl->GetValue()))
             break;
     }
     if (i == m_price_listbox->GetItemCount())
@@ -916,7 +917,7 @@ void mmStockDialog::OnHistoryAddButton(wxCommandEvent& /*event*/)
         {
             listStr = m_price_listbox->GetItemText(i, 0);
             mmParseDisplayStringToDate(dt, listStr, Option::instance().DateFormat());
-            if (dt.FormatISODate() < m_history_date_ctrl->GetValue().FormatISODate())
+            if (dt.GetDateOnly() < m_history_date_ctrl->GetValue().GetDateOnly())
                 break;
         }
         wxListItem item;
@@ -966,16 +967,16 @@ void mmStockDialog::ShowStockHistory()
     size_t rows = histData.size() - 1;
     if (!histData.empty())
     {
-        for (int idx = 0; idx < histData.size(); idx++ )
+        for (size_t idx = 0; idx < histData.size(); idx++ )
         {
             wxListItem item;
-            item.SetId(idx);
+            item.SetId(static_cast<long>(idx));
             item.SetData(histData.at(idx).HISTID);
             m_price_listbox->InsertItem(item);
             const wxDate dtdt = Model_StockHistory::DATE(histData.at(idx));
             const wxString dispAmount = Model_Account::toString(histData.at(idx).VALUE, account, Option::instance().SharePrecision());
-            m_price_listbox->SetItem(idx, 0, mmGetDateForDisplay(histData.at(idx).DATE));
-            m_price_listbox->SetItem(idx, 1, dispAmount);
+            m_price_listbox->SetItem(static_cast<long>(idx), 0, mmGetDateForDisplay(histData.at(idx).DATE));
+            m_price_listbox->SetItem(static_cast<long>(idx), 1, dispAmount);
             if (idx == 0)
             {
                 m_history_date_ctrl->SetValue(dtdt);

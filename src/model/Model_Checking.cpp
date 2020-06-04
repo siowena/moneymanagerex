@@ -24,7 +24,7 @@
 #include <queue>
 #include "Model_Translink.h"
 
-const std::vector<std::pair<Model_Checking::TYPE, wxString> > Model_Checking::TYPE_CHOICES = 
+const std::vector<std::pair<Model_Checking::TYPE, wxString> > Model_Checking::TYPE_CHOICES =
 {
     {Model_Checking::WITHDRAWAL, wxString(wxTRANSLATE("Withdrawal"))}
     , {Model_Checking::DEPOSIT, wxString(wxTRANSLATE("Deposit"))}
@@ -40,11 +40,11 @@ const std::vector<std::pair<Model_Checking::STATUS_ENUM, wxString> > Model_Check
     , {Model_Checking::DUPLICATE_, wxString(wxTRANSLATE("Duplicate"))}
 };
 
-Model_Checking::Model_Checking(): Model<DB_Table_CHECKINGACCOUNT_V1>()
+Model_Checking::Model_Checking() : Model<DB_Table_CHECKINGACCOUNT_V1>()
 {
 }
 
-Model_Checking::~Model_Checking() 
+Model_Checking::~Model_Checking()
 {
 }
 
@@ -135,7 +135,7 @@ Model_Checking::TYPE Model_Checking::type(const wxString& r)
     const auto it = cache.find(r);
     if (it != cache.end()) return it->second;
 
-    for (const auto& t : TYPE_CHOICES) 
+    for (const auto& t : TYPE_CHOICES)
     {
         if (r.CmpNoCase(t.second) == 0)
         {
@@ -164,7 +164,7 @@ Model_Checking::STATUS_ENUM Model_Checking::status(const wxString& r)
 
     for (const auto & s : STATUS_ENUM_CHOICES)
     {
-        if (r.CmpNoCase(s.second) == 0) 
+        if (r.CmpNoCase(s.second) == 0)
         {
             cache.insert(std::make_pair(r, s.first));
             return s.first;
@@ -289,7 +289,7 @@ Model_Checking::Full_Data::Full_Data() : Data(0), BALANCE(0), AMOUNT(0)
 }
 
 Model_Checking::Full_Data::Full_Data(const Data& r) : Data(r), BALANCE(0), AMOUNT(0)
-    , m_splits(Model_Splittransaction::instance().find(Model_Splittransaction::TRANSID(r.TRANSID)))
+, m_splits(Model_Splittransaction::instance().find(Model_Splittransaction::TRANSID(r.TRANSID)))
 {
     ACCOUNTNAME = Model_Account::get_account_name(r.ACCOUNTID);
 
@@ -302,7 +302,7 @@ Model_Checking::Full_Data::Full_Data(const Data& r) : Data(r), BALANCE(0), AMOUN
     {
         PAYEENAME = Model_Payee::get_payee_name(r.PAYEEID);
     }
-    
+
     if (!m_splits.empty())
     {
         for (const auto& entry : m_splits)
@@ -332,7 +332,7 @@ Model_Checking::Full_Data::Full_Data(const Data& r
     {
         PAYEENAME = Model_Payee::get_payee_name(r.PAYEEID);
     }
-    
+
     if (!m_splits.empty())
     {
         for (const auto& entry : m_splits)
@@ -381,7 +381,7 @@ wxString Model_Checking::Full_Data::info() const
 {
     // TODO more info
     wxDate date = Model_Checking::TRANSDATE(this);
-    wxString info = wxGetTranslation(date.GetWeekDayName(date.GetWeekDay()));
+    wxString info = wxGetTranslation(wxDate::GetEnglishWeekDayName(date.GetWeekDay()));
     return info;
 }
 
@@ -398,13 +398,13 @@ void Model_Checking::getFrequentUsedNotes(std::vector<wxString> &frequentNotes, 
         counterMap[entry.NOTES]--;
 
     std::priority_queue<std::pair<int, wxString> > q; // largest element to appear as the top
-    for (const auto & kv: counterMap)
+    for (const auto & kv : counterMap)
     {
         q.push(std::make_pair(kv.second, kv.first));
         if (q.size() > max) q.pop(); // keep fixed queue as max
     }
 
-    while(!q.empty())
+    while (!q.empty())
     {
         const auto & kv = q.top();
         frequentNotes.push_back(kv.second);
@@ -415,8 +415,10 @@ void Model_Checking::getFrequentUsedNotes(std::vector<wxString> &frequentNotes, 
 void Model_Checking::getEmptyTransaction(Data &data, int accountID)
 {
     data.TRANSID = -1;
-    wxDateTime trx_date = wxDateTime::Today();
-    if (Option::instance().TransDateDefault() != 0)
+    data.PAYEEID = -1;
+    wxDateTime todayDate = wxDate::Today();
+    wxDateTime trx_date = todayDate;
+    if (Option::instance().TransDateDefault() != Option::NONE)
     {
         auto trans = instance().find(ACCOUNTID(accountID), TRANSDATE(trx_date, LESS_OR_EQUAL));
         std::stable_sort(trans.begin(), trans.end(), SorterByTRANSDATE());
@@ -424,7 +426,7 @@ void Model_Checking::getEmptyTransaction(Data &data, int accountID)
         if (!trans.empty())
             trx_date = to_date(trans.begin()->TRANSDATE);
 
-        wxDateTime trx_date_b = wxDateTime::Today();
+        wxDateTime trx_date_b = todayDate;
         auto trans_b = instance().find(TOACCOUNTID(accountID), TRANSDATE(trx_date_b, LESS_OR_EQUAL));
         std::stable_sort(trans_b.begin(), trans_b.end(), SorterByTRANSDATE());
         std::reverse(trans_b.begin(), trans_b.end());
@@ -446,23 +448,6 @@ void Model_Checking::getEmptyTransaction(Data &data, int accountID)
     data.TRANSAMOUNT = 0;
     data.TOTRANSAMOUNT = 0;
     data.TRANSACTIONNUMBER = "";
-    if (Option::instance().TransCategorySelection() != Option::NONE)
-    {
-        auto trx = instance().find(TRANSCODE(TRANSFER, NOT_EQUAL)
-            , ACCOUNTID(accountID, EQUAL), TRANSDATE(trx_date, LESS_OR_EQUAL));
-
-        if (!trx.empty())
-        {
-            std::stable_sort(trx.begin(), trx.end(), SorterByTRANSDATE());
-            Model_Payee::Data* payee = Model_Payee::instance().get(trx.rbegin()->PAYEEID);
-            if (payee) data.PAYEEID = payee->PAYEEID;
-            if (payee && Option::instance().TransCategorySelection() != Option::NONE)
-            {
-                data.CATEGID = payee->CATEGID;
-                data.SUBCATEGID = payee->SUBCATEGID;
-            }
-        }
-    }
 }
 
 bool Model_Checking::getTransactionData(Data &data, const Data* r)
@@ -512,17 +497,17 @@ const wxString Model_Checking::Full_Data::to_json()
     Model_Checking::Data::as_json(json_writer);
 
     json_writer.Key("ACCOUNTNAME");
-    json_writer.String(this->ACCOUNTNAME.c_str());
+    json_writer.String(this->ACCOUNTNAME.utf8_str());
 
     if (is_transfer(this))
     {
         json_writer.Key("TOACCOUNTNAME");
-        json_writer.String(this->TOACCOUNTNAME.c_str());
+        json_writer.String(this->TOACCOUNTNAME.utf8_str());
     }
     else
     {
         json_writer.Key("PAYEENAME");
-        json_writer.String(this->PAYEENAME.c_str());
+        json_writer.String(this->PAYEENAME.utf8_str());
     }
 
     if (this->has_split())
@@ -532,7 +517,7 @@ const wxString Model_Checking::Full_Data::to_json()
         for (const auto & item : m_splits)
         {
             json_writer.StartObject();
-            json_writer.Key(Model_Category::full_name(item.CATEGID, item.SUBCATEGID).c_str());
+            json_writer.Key(Model_Category::full_name(item.CATEGID, item.SUBCATEGID).utf8_str());
             json_writer.Double(item.SPLITTRANSAMOUNT);
             json_writer.EndObject();
         }
@@ -541,15 +526,15 @@ const wxString Model_Checking::Full_Data::to_json()
     else
     {
         json_writer.Key("CATEG");
-        json_writer.String(Model_Category::full_name(this->CATEGID, this->SUBCATEGID).c_str());
+        json_writer.String(Model_Category::full_name(this->CATEGID, this->SUBCATEGID).utf8_str());
     }
 
     json_writer.EndObject();
 
     wxLogDebug("======= Model_Checking::FullData::to_json =======");
-    wxLogDebug("FullData using rapidjson:\n%s", json_buffer.GetString());
+    wxLogDebug("FullData using rapidjson:\n%s", wxString::FromUTF8(json_buffer.GetString()));
 
-    return json_buffer.GetString();
+    return wxString::FromUTF8(json_buffer.GetString());
 }
 
 bool Model_Checking::foreignTransaction(const Data& data)

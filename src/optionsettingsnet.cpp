@@ -164,17 +164,17 @@ void OptionSettingsNet::Create()
     SetSizer(networkPanelSizer);
 }
 
-void OptionSettingsNet::OnProxyChanged(wxCommandEvent& event)
+void OptionSettingsNet::OnProxyChanged(wxCommandEvent& WXUNUSED(event))
 {
     m_proxy_port->Enable(m_proxy_address->GetValue() != "");
 }
 
-void OptionSettingsNet::OnUpdateCheckChanged(wxCommandEvent& event)
+void OptionSettingsNet::OnUpdateCheckChanged(wxCommandEvent& WXUNUSED(event))
 {
     m_update_source->Enable(m_check_update->GetValue());
 }
 
-void OptionSettingsNet::SaveSettings()
+bool OptionSettingsNet::SaveSettings()
 {
     Model_Setting::instance().Set("PROXYIP", m_proxy_address->GetValue());
     Model_Setting::instance().Set("PROXYPORT", m_proxy_port->GetValue());
@@ -191,4 +191,6 @@ void OptionSettingsNet::SaveSettings()
 
     Model_Setting::instance().Set("UPDATECHECK", m_check_update->GetValue());
     Model_Setting::instance().Set("UPDATESOURCE", m_update_source->GetSelection());
+
+    return true;
 }

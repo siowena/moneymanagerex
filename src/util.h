@@ -90,34 +90,10 @@ inline wxString mmListBoxItem::getName() const { return name_; }
 class mmTreeItemData : public wxTreeItemData
 {
 public:
-    mmTreeItemData(int id, bool isBudget)
-        : id_(id)
-        , isString_(false)
-        , isBudgetingNode_(isBudget)
-        , stringData_(wxString::Format("%i", id))
-        , report_(nullptr)
-    {}
-    mmTreeItemData(const wxString& string, mmPrintableBase* report)
-        : id_(0)
-        , isString_(true)
-        , isBudgetingNode_(false)
-        , stringData_("report@" + string)
-        , report_(report)
-    {}
-    mmTreeItemData(mmPrintableBase* report)
-        : id_(0)
-        , isString_(true)
-        , isBudgetingNode_(false)
-        , stringData_("report@" + report->getReportTitle())
-        , report_(report)
-    {}
-    mmTreeItemData(const wxString& string)
-        : id_(0)
-        , isString_(true)
-        , isBudgetingNode_(false)
-        , stringData_("item@" + string)
-        , report_(nullptr)
-    {}
+    mmTreeItemData(int id, bool isBudget, bool isReadOnly);
+    mmTreeItemData(const wxString& string, mmPrintableBase* report);
+    mmTreeItemData(mmPrintableBase* report);
+    mmTreeItemData(const wxString& string, bool isReadOnly);
     
     ~mmTreeItemData() {}
 
@@ -126,11 +102,13 @@ public:
     mmPrintableBase* get_report() const;
     bool isStringData() const;
     bool isBudgetingNode() const;
+    bool isReadOnly() const;
 
 private:
     int id_;
     bool isString_;
     bool isBudgetingNode_;
+    bool isReadOnly_;
     wxString stringData_;
     wxSharedPtr<mmPrintableBase> report_;
 };
@@ -140,6 +118,7 @@ inline const wxString mmTreeItemData::getString() const { return stringData_; }
 inline mmPrintableBase* mmTreeItemData::get_report() const { return report_.get(); }
 inline bool mmTreeItemData::isStringData() const { return isString_; }
 inline bool mmTreeItemData::isBudgetingNode() const { return isBudgetingNode_; }
+inline bool mmTreeItemData::isReadOnly() const { return isReadOnly_; }
 
 //----------------------------------------------------------------------------
 
@@ -149,6 +128,7 @@ void csv2tab_separated_values(wxString& line, const wxString& delimit);
 void correctEmptyFileExt(const wxString& ext, wxString & fileName );
 
 void mmLoadColorsFromDatabase();
+wxColour getUDColour(int c);
 
 class mmColors
 {
@@ -171,7 +151,6 @@ public:
 //----------------------------------------------------------------------------
 
 bool getNewsRSS(std::vector<WebsiteNews>& WebsiteNewsList);
-const wxString getURL(const wxString& file);
 enum yahoo_price_type { FIAT = 0, SHARES };
 bool getOnlineCurrencyRates(wxString& msg, int curr_id = -1, bool used_only = true);
 bool get_yahoo_prices(std::map<wxString, double>& symbols
@@ -184,6 +163,8 @@ const wxString mmPlatformType();
 const wxString getProgramDescription(int type = 0);
 void windowsFreezeThaw(wxWindow* w);
 const wxString md2html(const wxString& md);
+const wxString getVFname4print(const wxString& name, const wxString& data);
+void clearVFprintedFiles(const wxString& name);
 
 //* Date Functions----------------------------------------------------------*//
 static const wxString MONTHS[12] =

@@ -83,12 +83,13 @@ void mmHelpPanel::CreateControls()
     **************************************************************************/
 
     int helpFileIndex = m_frame->getHelpFileIndex();
-    const wxString help_file = wxString::Format("file://%s?lang=%s"
-        , mmex::getPathDoc(static_cast<mmex::EDocFile>(helpFileIndex))
-        , Option::instance().getLanguageISO6391());
-
+    const wxString help_file = mmex::getPathDoc(static_cast<mmex::EDocFile>(helpFileIndex));
+    m_frame->setHelpFileIndex();
     //wxLogDebug("%s", help_file);
     browser_ = wxWebView::New(this, wxID_ANY, help_file);
+
+    Bind(wxEVT_WEBVIEW_NEWWINDOW, &mmHelpPanel::OnNewWindow, this, browser_->GetId());
+
     itemBoxSizer2->Add(browser_, 1, wxGROW | wxALL, 1);
 }
 
@@ -117,4 +118,12 @@ void mmHelpPanel::OnHelpPageForward(wxCommandEvent& /*event*/)
 void mmHelpPanel::PrintPage()
 {
     browser_->Print();
+}
+
+void mmHelpPanel::OnNewWindow(wxWebViewEvent& evt)
+{
+    const wxString uri = evt.GetURL();
+    wxLaunchDefaultBrowser(uri);
+
+    evt.Skip();
 }

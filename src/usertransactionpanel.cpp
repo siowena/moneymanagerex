@@ -72,7 +72,6 @@ UserTransactionPanel::~UserTransactionPanel()
 void UserTransactionPanel::Create()
 {
     // Control properties according to system
-    int spinCtrlDirection = wxSP_VERTICAL;
     int interval = 0;
 #ifdef __WXMSW__
     wxSize spinCtrlSize = wxSize(18, 22);
@@ -98,9 +97,9 @@ void UserTransactionPanel::Create()
     wxBoxSizer* date_sizer = new wxBoxSizer(wxHORIZONTAL);
     date_sizer->Add(m_date_selector, g_flagsH);
 
-#ifndef __WXMAC__
+#ifdef __WXMSW__
     wxSpinButton* date_controller = new wxSpinButton(this, ID_TRANS_DATE_CONTROLLER
-        , wxDefaultPosition, spinCtrlSize, spinCtrlDirection | wxSP_ARROW_KEYS | wxSP_WRAP);
+        , wxDefaultPosition, spinCtrlSize, wxSP_VERTICAL | wxSP_ARROW_KEYS | wxSP_WRAP);
     date_controller->SetToolTip(_("Retard or advance the date of the transaction"));
     date_sizer->Add(date_controller, 0, wxALIGN_LEFT | wxALIGN_CENTER_VERTICAL | wxLEFT, interval);
 #endif
@@ -328,7 +327,7 @@ void UserTransactionPanel::OnTransPayeeButton(wxCommandEvent& WXUNUSED(event))
 
 void UserTransactionPanel::OnTransCategoryButton(wxCommandEvent& WXUNUSED(event))
 {
-    mmCategDialog dlg(this, m_category_id, m_subcategory_id);
+    mmCategDialog dlg(this, true, m_category_id, m_subcategory_id);
     if (dlg.ShowModal() == wxID_OK)
     {
         m_category_id = dlg.getCategId();

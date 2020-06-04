@@ -181,7 +181,7 @@ bool mmWebApp::WebApp_UpdateAccount()
         {
             json_writer.StartObject();
             json_writer.Key("AccountName");
-            json_writer.String(account.ACCOUNTNAME.c_str());
+            json_writer.String(account.ACCOUNTNAME.utf8_str());
             json_writer.EndObject();
         }
     }
@@ -236,11 +236,11 @@ bool mmWebApp::WebApp_UpdatePayee()
 
         json_writer.StartObject();
         json_writer.Key("PayeeName");
-        json_writer.String(payee.PAYEENAME.c_str());
+        json_writer.String(payee.PAYEENAME.utf8_str());
         json_writer.Key("DefCateg");
-        json_writer.String(def_category_name.c_str());
+        json_writer.String(def_category_name.utf8_str());
         json_writer.Key("DefSubCateg");
-        json_writer.String(def_subcategory_name.c_str());
+        json_writer.String(def_subcategory_name.utf8_str());
         json_writer.EndObject();
     }
 
@@ -283,7 +283,7 @@ bool mmWebApp::WebApp_UpdateCategory()
 
         json_writer.StartObject();
         json_writer.Key("CategoryName");
-        json_writer.String(category.CATEGNAME.c_str());
+        json_writer.String(category.CATEGNAME.utf8_str());
 
         for (const auto &sub_category : Model_Category::sub_category(category))
         {
@@ -291,7 +291,7 @@ bool mmWebApp::WebApp_UpdateCategory()
             if (first_category_run == true)
             {
                 json_writer.Key("SubCategoryName");
-                json_writer.String(sub_category.SUBCATEGNAME.c_str());
+                json_writer.String(sub_category.SUBCATEGNAME.utf8_str());
                 json_writer.EndObject();
 
                 first_category_run = false;
@@ -300,10 +300,10 @@ bool mmWebApp::WebApp_UpdateCategory()
             {
                 json_writer.StartObject();
                 json_writer.Key("CategoryName");
-                json_writer.String(category.CATEGNAME.c_str());
+                json_writer.String(category.CATEGNAME.utf8_str());
 
                 json_writer.Key("SubCategoryName");
-                json_writer.String(sub_category.SUBCATEGNAME.c_str());
+                json_writer.String(sub_category.SUBCATEGNAME.utf8_str());
                 json_writer.EndObject();
 
                 first_category_run = false;
@@ -331,19 +331,19 @@ bool mmWebApp::WebApp_UpdateCategory()
 }
 
 //Download new transactions
-bool mmWebApp::WebApp_DownloadNewTransaction(WebTranVector& WebAppTransactions_, const bool CheckOnly)
+int mmWebApp::WebApp_DownloadNewTransaction(WebTranVector& WebAppTransactions_, const bool CheckOnly)
 {
     wxString NewTransactionJSON;
     CURLcode ErrorCode = http_get_data(mmWebApp::getServicesPageURL() + "&" + WebAppParam::DownloadNewTransaction, NewTransactionJSON);
 
     if (NewTransactionJSON == "null" || NewTransactionJSON.IsEmpty() || ErrorCode != CURLE_OK)
-        return false;
+        return ErrorCode;
     else if (CheckOnly)
-        return true;
+        return ErrorCode;
     else
     {
         Document j_doc;
-        if (j_doc.Parse(NewTransactionJSON.c_str()).HasParseError())
+        if (j_doc.Parse(NewTransactionJSON.utf8_str()).HasParseError())
             return true;
 
         //Define variables
@@ -365,13 +365,12 @@ bool mmWebApp::WebApp_DownloadNewTransaction(WebTranVector& WebAppTransactions_,
             if (trx.HasMember("Amount") && trx["Amount"].IsString()) {
                 wxString sAmount = trx["Amount"].GetString();
                 double dAmount;
-                if (!sAmount.ToDouble(&dAmount))
-                    dAmount = 0;
+                sAmount.ToCDouble(&dAmount);
                 WebTran.Amount = dAmount;
             }
 
             if (trx.HasMember("Account") && trx["Account"].IsString()) {
-                WebTran.Account =wxString::FromUTF8(trx["Account"].GetString());
+                WebTran.Account = wxString::FromUTF8(trx["Account"].GetString());
             }
 
             if (trx.HasMember("ToAccount") && trx["ToAccount"].IsString()) {
@@ -397,6 +396,7 @@ bool mmWebApp::WebApp_DownloadNewTransaction(WebTranVector& WebAppTransactions_,
 
             if (trx.HasMember("Category") && trx["Category"].IsString()) {
                 wxString Category = wxString::FromUTF8(trx["Category"].GetString());
+                Category.Replace(":", "|");
                 if (Category == "None" || Category.IsEmpty()) {
                     Category = _("Unknown");
                 }
@@ -405,8 +405,10 @@ bool mmWebApp::WebApp_DownloadNewTransaction(WebTranVector& WebAppTransactions_,
 
             if (trx.HasMember("SubCategory") && trx["SubCategory"].IsString()) {
                 wxString SubCategory = wxString::FromUTF8(trx["SubCategory"].GetString());
+                SubCategory.Replace(":", "|");
                 if (SubCategory == "None" || SubCategory.IsEmpty()) {
-                    SubCategory = _("Unknown");
+                    //Empty and not "Unknown" because it could be a category without any subcategory: if categories are not used at all, Unknown as category is enough
+                    SubCategory = wxEmptyString;
                 }
                 WebTran.SubCategory = SubCategory;
             }
@@ -421,7 +423,7 @@ bool mmWebApp::WebApp_DownloadNewTransaction(WebTranVector& WebAppTransactions_,
 
             WebAppTransactions_.push_back(WebTran);
         }
-        return true;
+        return CURLE_OK;
     }
 }
 
@@ -632,15 +634,21 @@ wxString mmWebApp::WebApp_DownloadOneAttachment(const wxString& AttachmentName, 
 }
 
 //Get one attachment from WebApp
-wxString mmWebApp::WebApp_GetAttachment(const wxString& AttachmentFileName)
+bool mmWebApp::WebApp_DownloadAttachment(wxString& AttachmentFileName)
 {
-    wxString FileExtension = wxFileName(AttachmentFileName).GetExt().MakeLower();
-    wxString FilePath = mmex::getTempFolder() + "WebAppAttach_" + wxDateTime::Now().Format("%Y%m%d%H%M%S") + "." + FileExtension;
-    wxString URL = mmWebApp::getServicesPageURL() + "&" + WebAppParam::DownloadAttachments + "=" + AttachmentFileName;
-    if (http_download_file(URL, FilePath) == CURLE_OK)
-        return FilePath;
-    else
-    return wxEmptyString;
+    const wxString FileExtension = wxFileName(AttachmentFileName).GetExt().MakeLower();
+    wxString orig_file_name = AttachmentFileName;
+    AttachmentFileName = wxFileName::CreateTempFileName(AttachmentFileName);
+
+    wxString URL = mmWebApp::getServicesPageURL() + "&" + WebAppParam::DownloadAttachments + "=" + orig_file_name;
+    if (http_download_file(URL, AttachmentFileName) == CURLE_OK) {
+        wxString temp_file = AttachmentFileName + "." + FileExtension;
+        if (wxRenameFile(AttachmentFileName, temp_file)) {
+            AttachmentFileName = temp_file;
+            return true;
+        }
+    }
+    return false;
 }
 
 

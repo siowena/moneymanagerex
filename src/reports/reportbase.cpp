@@ -1,5 +1,6 @@
 /*******************************************************
  Copyright (C) 2013 James Higley
+ Copyright (C) 2020 Nikolay Akimov
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -22,6 +23,7 @@
 #include "mmSimpleDialogs.h"
 #include "mmDateRange.h"
 #include "model/Model_Account.h"
+#include "util.h"
 
 mmPrintableBase::mmPrintableBase(const wxString& title)
     : m_title(title)
@@ -32,73 +34,137 @@ mmPrintableBase::mmPrintableBase(const wxString& title)
     , m_chart_selection(0)
     , accountArray_(nullptr)
     , m_only_active(false)
+    , m_id(-1)
+    , m_parameters(0)
     , m_settings("")
-    , m_begin_date(wxDateTime::Today())
-    , m_end_date(wxDateTime::Today())
 {
 }
 
 mmPrintableBase::~mmPrintableBase()
 {
-    Document j_doc;
-    if (!j_doc.Parse(m_settings.c_str()).HasParseError()) {
-
-        if (j_doc.HasMember("ID") && j_doc["ID"].IsInt()) {
-            int id = j_doc["ID"].GetInt();
-
-            StringBuffer json_buffer;
-            PrettyWriter<StringBuffer> json_writer(json_buffer);
-
-            json_writer.StartObject();
-            json_writer.Key("ID");
-            json_writer.Int(id);
-
-            if (m_date_selection)
-            {
-                json_writer.Key("REPORTPERIOD");
-                json_writer.Int(m_date_selection);
-            }
-
-            json_writer.Key("DATE1");
-            json_writer.String(m_begin_date.FormatISODate().c_str());
-
-            json_writer.Key("DATE2");
-            json_writer.String(m_end_date.FormatISODate().c_str());
-
-            if (m_account_selection)
-            {
-                json_writer.Key("ACCOUNTSELECTION");
-                json_writer.Int(m_account_selection);
-
-                if (accountArray_ && !accountArray_->empty())
-                {
-                    json_writer.Key("ACCOUNTS");
-
-                    json_writer.StartArray();
-                    for (const auto& entry : *accountArray_)
-                    {
-                        json_writer.String(entry.c_str());
-                    }
-                    json_writer.EndArray();
-                }
-            }
-
-            if (m_chart_selection)
-            {
-                json_writer.Key("CHART");
-                json_writer.Int(m_chart_selection);
-            }
-
-            json_writer.EndObject();
-
-            const wxString& rj_key = wxString::Format("REPORT_%d", id);
-            const wxString& rj_value = json_buffer.GetString();
-            Model_Infotable::instance().Set(rj_key, rj_value);
-        }
-    }
+    setReportSettings();
 
     if (accountArray_)
         delete accountArray_;
+}
+
+void mmPrintableBase::setReportParameters(int id)
+{
+    m_id = id;
+
+    switch (id) {
+    case MyUsage:                     m_parameters = DATE_RANGE | CHART; break;
+    case MonthlySummaryofAccounts:    m_parameters = NONE; break;
+    case YearlySummaryofAccounts:     m_parameters = NONE; break;
+    case WheretheMoneyGoes:           m_parameters = DATE_RANGE | CHART | ACCOUNTS_LIST; break;
+    case WheretheMoneyComesFrom:      m_parameters = DATE_RANGE | CHART | ACCOUNTS_LIST; break;
+    case CategoriesSummary:           m_parameters = DATE_RANGE | CHART | ACCOUNTS_LIST; break;
+    case CategoriesMonthly:           m_parameters = DATE_RANGE | CHART | ACCOUNTS_LIST; break;
+    case Payees:                      m_parameters = DATE_RANGE | CHART; break;
+    case IncomevsExpensesSummary:     m_parameters = DATE_RANGE | ACCOUNTS_LIST; break;
+    case IncomevsExpensesMonthly:     m_parameters = DATE_RANGE | ACCOUNTS_LIST | CHART; break;
+    case BudgetPerformance:           m_parameters = ONLY_YEARS; break;
+    case BudgetCategorySummary:       m_parameters = BUDGET_DATES | CHART; break;
+    case MonthlyCashFlow:             m_parameters = ACCOUNTS_LIST | CHART; break;
+    case DailyCashFlow:               m_parameters = ACCOUNTS_LIST | CHART; break;
+    case StocksReportPerformance:     m_parameters = DATE_RANGE; break;
+    case StocksReportSummary:         m_parameters = NONE; break;
+    case ForecastReport:              m_parameters = SINGLE_DATE; break;
+    case BugReport:                   m_parameters = NONE; break;
+    case CategoryOverTimePerformance: m_parameters = MONTHES | CHART | ACCOUNTS_LIST; break;
+    default:                          m_parameters = NONE; break;
+    }
+}
+
+void mmPrintableBase::setReportSettings()
+{
+    int ID = getReportId();
+    wxLogDebug("%d - %s", ID, m_title);
+
+    Document j_doc;
+    if (ID >= 0)
+    {
+        StringBuffer json_buffer;
+        PrettyWriter<StringBuffer> json_writer(json_buffer);
+
+        bool isActive = false;
+
+        json_writer.StartObject();
+
+        if (m_parameters & DATE_RANGE)
+        {
+            json_writer.Key("REPORTPERIOD");
+            json_writer.Int(m_date_selection);
+            isActive = true;
+        }
+
+        if (m_parameters & ACCOUNTS_LIST)
+        {
+            isActive = true;
+            json_writer.Key("ACCOUNTSELECTION");
+            json_writer.Int(m_account_selection);
+
+            if (accountArray_ && !accountArray_->empty())
+            {
+                json_writer.Key("ACCOUNTS");
+
+                json_writer.StartArray();
+                for (const auto& entry : *accountArray_)
+                {
+                    json_writer.String(entry.utf8_str());
+                }
+                json_writer.EndArray();
+            }
+        }
+
+        if (m_parameters & CHART)
+        {
+            isActive = true;
+            json_writer.Key("CHART");
+            json_writer.Int(m_chart_selection);
+        }
+
+        json_writer.EndObject();
+        if (isActive)
+        {
+            const wxString& rj_key = wxString::Format("REPORT_%d", ID);
+            const wxString& rj_value = wxString::FromUTF8(json_buffer.GetString());
+            Model_Infotable::instance().Set(rj_key, rj_value);
+            m_settings = rj_value;
+        }
+    }
+}
+
+void mmPrintableBase::restoreReportSettings()
+{
+    Document j_doc;
+    if (j_doc.Parse(m_settings.c_str()).HasParseError())
+        return;
+
+    if (j_doc.HasMember("REPORTPERIOD") && j_doc["REPORTPERIOD"].IsInt()) {
+        m_date_selection = j_doc["REPORTPERIOD"].GetInt();
+    }
+
+    if (j_doc.HasMember("ACCOUNTSELECTION") && j_doc["ACCOUNTSELECTION"].IsInt()) {
+        m_account_selection = j_doc["ACCOUNTSELECTION"].GetInt();
+    }
+
+    if (accountArray_) {
+        delete accountArray_;
+    }
+
+    if (j_doc.HasMember("ACCOUNTS") && j_doc["ACCOUNTS"].IsArray()) {
+        wxArrayString* accountSelections = new wxArrayString();
+        const Value& a = j_doc["ACCOUNTS"].GetArray();
+        for (const auto& v : a.GetArray()) {
+            accountSelections->Add(v.GetString());
+        }
+        accountArray_ = accountSelections;
+    }
+
+    if (j_doc.HasMember("CHART") && j_doc["CHART"].IsInt()) {
+        m_chart_selection = j_doc["CHART"].GetInt();
+    }
 }
 
 void mmPrintableBase::date_range(const mmDateRange* date_range, int selection)
@@ -188,18 +254,54 @@ mmGeneralReport::mmGeneralReport(const Model_Report::Data* report)
 
 wxString mmGeneralReport::getHTMLText()
 {
-    return Model_Report::instance().get_html(this->m_report);
-}
+    wxString out;
+    int error = Model_Report::instance().get_html(this->m_report, out);
+    if (error != 0) {
+        const char* error_template = R"(
+<!DOCTYPE html>
+<html lang="en">
 
+<head>
+    <meta charset="UTF-8">
+    <title>Error</title>
+    <style type="text/css">
+    h1.error {
+        left: 0;
+        line-height: 50px;
+        margin-top: -15px;
+        position: absolute;
+        text-align: center;
+        top: 15%;
+        width: 90%;
+        font-size: 2em;
+        color: #dadada;
+        -webkit-text-fill-color: #dadada;
+        -webkit-text-stroke-width: 1px;
+        -webkit-text-stroke-color: black;
+    }
+    </style>
+</head>
+<body>
+    <h1 class="error"><TMPL_VAR ERROR></h1> </body>
+</html>
+)";
+        wxString html = error_template;
+        html.Replace("<TMPL_VAR ERROR>", out);
+        out.swap(html);
+    }
+
+    return out;
+}
+ 
 int mmGeneralReport::report_parameters()
 {
     int params = 0;
     const auto content = m_report->SQLCONTENT.Lower();
     if (content.Contains("&begin_date")
         || content.Contains("&end_date"))
-        params |= RepParams::DATE_RANGE;
+        params |= DATE_RANGE;
     else if (content.Contains("&single_date"))
-        params |= RepParams::SINGLE_DATE;
+        params |= SINGLE_DATE;
 
     return params;
 }
@@ -267,22 +369,9 @@ void mm_html_template::load_context()
 
 const wxString mmPrintableBase::getReportTitle() const
 {
-	wxString title = m_title;
-	if (m_date_range)
-	{
-		if (m_date_range->title().IsEmpty())
-			title += " - " + _("Custom");
-		else
-			title += " - " + wxGetTranslation(m_date_range->title());
-	}
-	return title;
-}
-
-const wxString mmPrintableBase::getFileName() const
-{
-	wxString file_name = getReportTitle();
-	file_name.Replace(" - ", "-");
-	file_name.Replace(" ", "_");
-	file_name.Replace("/", "-");
-	return file_name;
+    wxString title = m_title;
+    if (m_date_range) {
+        title += " - " + m_date_range->local_title();
+    }
+    return title;
 }

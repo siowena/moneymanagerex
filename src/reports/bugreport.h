@@ -25,7 +25,7 @@ const char* bugreport_template = R"(
 <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <title><TMPL_VAR REPORTNAME></title>
-    <link href='master.css' rel='stylesheet' />
+    <link href='memory:master.css' rel='stylesheet' />
     <style>
         canvas {min-height: 100px}
         body {font-size: <TMPL_VAR HTMLSCALE>%}
@@ -47,7 +47,6 @@ public:
     mmBugReport();
     virtual ~mmBugReport();
 
-    virtual int report_parameters();
     virtual wxString getHTMLText();
 };
 
@@ -58,11 +57,6 @@ mmBugReport::mmBugReport()
 
 mmBugReport::~mmBugReport()
 {
-}
-
-int mmBugReport::report_parameters()
-{
-    return RepParams::NONE;
 }
 
 wxString mmBugReport::getHTMLText()
@@ -79,7 +73,7 @@ wxString mmBugReport::getHTMLText()
         wxString::Format(_("Search <a href='%s'>a list of known issues</a> for similar problem. If so, update existing issue instead of creating a new one.")
             ,  mmex::weblink::BugReport),
         wxString::Format(_("As you know, <a href='%s'>a forum</a> for users is available where you can discuss problems and find solutions."), mmex::weblink::Forum),
-        wxString::Format(_("Please, join our community in <a href='%s'>Slack</a>. Here you can also pose your question and learn a latest news."), mmex::weblink::Slack),
+        wxString::Format(_("Please, join our community in <a href='%s'>Slack</a>. Here you can also pose your question and learn latest news."), mmex::weblink::Slack),
         wxString::Format(_("Read <a href='%s'>How to Report Bugs Effectively</a> for useful tips."), mmex::weblink::Chiark),
         _("Come up with a descriptive name for your problem."),
         _("Include steps to reproduce your problem, attach screenshots where appropriate."),
@@ -98,7 +92,7 @@ wxString mmBugReport::getHTMLText()
     report(L"REPORTNAME") = this->getReportTitle();
     report(L"HEADER") = _("Please, follow these instructions before submitting a new bug report:");
     report(L"CONTENTS") = msg;
-    report(L"HTMLSCALE") = wxString::Format("%d", Option::instance().HtmlFontSize() * 3 / 2);
+    report(L"HTMLSCALE") = wxString::Format("%d", Option::instance().getHtmlFontSize() * 3 / 2);
 
     wxString out = wxEmptyString;
     try

@@ -175,7 +175,7 @@ void mmCustomFieldEditDialog::CreateControls()
     itemButton30->SetFocus();
 }
 
-void mmCustomFieldEditDialog::OnOk(wxCommandEvent& /*event*/)
+void mmCustomFieldEditDialog::OnOk(wxCommandEvent& WXUNUSED(event))
 {
     const wxString name = m_itemDescription->GetValue().Trim();
     if (name.empty())
@@ -255,23 +255,22 @@ void mmCustomFieldEditDialog::OnOk(wxCommandEvent& /*event*/)
     EndModal(wxID_OK);
 }
 
-void mmCustomFieldEditDialog::OnCancel(wxCommandEvent& /*event*/)
+void mmCustomFieldEditDialog::OnCancel(wxCommandEvent& WXUNUSED(event))
 {
     EndModal(wxID_CANCEL);
 }
 
-void mmCustomFieldEditDialog::OnQuit(wxCloseEvent& /*event*/)
+void mmCustomFieldEditDialog::OnQuit(wxCloseEvent& WXUNUSED(event))
 {
     EndModal(wxID_CANCEL);
 }
 
-void mmCustomFieldEditDialog::OnChangeType(wxCommandEvent& /*event*/)
+void mmCustomFieldEditDialog::OnChangeType(wxCommandEvent& WXUNUSED(event))
 {
     switch (m_itemType->GetSelection())
     {
     case Model_CustomField::STRING:
         {
-            m_itemRegEx->Enable(false);
             m_itemAutocomplete->Enable(true);
             m_itemChoices->Enable(false);
             m_itemChoices->SetValue(wxEmptyString);
@@ -279,7 +278,13 @@ void mmCustomFieldEditDialog::OnChangeType(wxCommandEvent& /*event*/)
         break;
     case Model_CustomField::SINGLECHOICE:
         {
-            m_itemRegEx->Enable(false);
+            m_itemAutocomplete->Enable(false);
+            m_itemAutocomplete->SetValue(false);
+            m_itemChoices->Enable(true);
+        }
+        break;
+    case Model_CustomField::MULTICHOICE:
+        {
             m_itemAutocomplete->Enable(false);
             m_itemAutocomplete->SetValue(false);
             m_itemChoices->Enable(true);
@@ -287,7 +292,6 @@ void mmCustomFieldEditDialog::OnChangeType(wxCommandEvent& /*event*/)
         break;
     default:
         {
-            m_itemRegEx->Enable(false);
             m_itemAutocomplete->Enable(false);
             m_itemAutocomplete->SetValue(false);
             m_itemChoices->Enable(false);

@@ -1,5 +1,8 @@
 files:
   - source: /po/mmex.pot
     translation: /po/%locale_with_underscore%.po
+<<<<<<< HEAD
     translation_replace: {"_SP" : ""}
 
+=======
+>>>>>>> upstream/master

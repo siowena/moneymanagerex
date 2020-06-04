@@ -46,8 +46,10 @@ public:
         , const std::map<int, Model_Splittransaction::Data_Set>& split);
     bool checkAll(const Model_Billsdeposits::Data &tran
         , const std::map<int, Model_Budgetsplittransaction::Data_Set>& split);
+    const wxString getDescriptionToolTip();
     void getDescription(mmHTMLBuilder &hb);
-    bool somethingSelected();
+    void ResetFilterStatus();
+    bool isSomethingSelected();
     void setAccountToolTip(const wxString& tip) const;
     bool getStatusCheckBox();
     bool getAccountCheckBox();
@@ -57,6 +59,7 @@ public:
     bool getSimilarStatus();
     int getCategId();
     int getSubCategId();
+    void SetStoredSettings(int id);
 
 private:
     void BuildPayeeList();
@@ -101,13 +104,12 @@ private:
     /// Creates the controls and sizers
     void CreateControls();
     void dataToControls();
-    wxString GetStoredSettings(int id);
 
     /// wxEVT_COMMAND_CHECKBOX_CLICKED event handler for ID_CHECKBOXACCOUNT
     void OnCheckboxClick( wxCommandEvent& event );
 
-    void OnButtonokClick(wxCommandEvent& event);
-    void OnButtoncancelClick(wxCommandEvent& event);
+    void OnButtonOkClick(wxCommandEvent& event);
+    void OnButtonCancelClick(wxCommandEvent& event);
     void OnButtonSaveClick(wxCommandEvent& event);
     void OnButtonClearClick(wxCommandEvent& event);
     void OnSettingsSelected(wxCommandEvent& event);
@@ -117,7 +119,7 @@ private:
     void OnTextEntered(wxCommandEvent& event);
 
     void OnCategs(wxCommandEvent& event);
-	const wxString to_json(bool i18n = false);
+    const wxString to_json(bool i18n = false);
     void from_json(const wxString &data);
 
     bool isValuesCorrect();

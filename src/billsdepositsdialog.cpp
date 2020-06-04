@@ -308,7 +308,7 @@ void mmBDDialog::dataToControls()
         SetDialogHeader(_("Enter Recurring Transaction"));
         m_date_paid->Disable();
         wxSpinButton* spinTransDate = static_cast<wxSpinButton*>(FindWindow(ID_DIALOG_TRANS_DATE_SPINNER));
-        spinTransDate->Disable();
+        if (spinTransDate) spinTransDate->Disable();
         m_choice_transaction_type->Disable();
         m_choice_repeat->Disable();
         textAmount_->SetFocus();
@@ -415,7 +415,7 @@ void mmBDDialog::CreateControls()
     wxBoxSizer* dueDateDateBoxSizer = new wxBoxSizer(wxHORIZONTAL);
     dueDateDateBoxSizer->Add(m_date_paid, g_flagsH);
 
-#ifndef __WXMAC__
+#ifdef __WXMSW__
     int spinCtrlDirection = wxSP_VERTICAL;
     wxSpinButton* spinTransDate = new wxSpinButton(this, ID_DIALOG_TRANS_DATE_SPINNER
         , wxDefaultPosition, wxSize(-1, m_date_paid->GetSize().GetHeight())
@@ -432,8 +432,7 @@ void mmBDDialog::CreateControls()
     staticTextRepeats_ = new wxStaticText(this, wxID_STATIC, _("Repeats"));
     itemFlexGridSizer5->Add(staticTextRepeats_, g_flagsH);
 
-    m_choice_repeat = new wxChoice(this, ID_DIALOG_BD_COMBOBOX_REPEATS
-        , wxDefaultPosition, m_date_paid->GetSize());
+    m_choice_repeat = new wxChoice(this, ID_DIALOG_BD_COMBOBOX_REPEATS);
 
     wxBoxSizer* repeatBoxSizer = new wxBoxSizer(wxHORIZONTAL);
     m_btn_due_date = new wxBitmapButton(this, ID_DIALOG_TRANS_BUTTONTRANSNUM, mmBitmap(png::RIGHTARROW));
@@ -502,7 +501,7 @@ void mmBDDialog::CreateControls()
     wxBoxSizer* transDateBoxSizer = new wxBoxSizer(wxHORIZONTAL);
     transDateBoxSizer->Add(m_date_due, g_flagsH);
 
-#ifndef __WXMAC__
+#ifdef __WXMSW__
     int interval = 0;
     wxSpinButton* spinNextOccDate = new wxSpinButton(this, ID_DIALOG_BD_REPEAT_DATE_SPINNER
         , wxDefaultPosition, wxSize(-1, m_date_due->GetSize().GetHeight())
@@ -764,7 +763,7 @@ void mmBDDialog::OnCategs(wxCommandEvent& WXUNUSED(event))
     }
     else
     {
-        mmCategDialog dlg(this, m_bill_data.CATEGID, m_bill_data.SUBCATEGID);
+        mmCategDialog dlg(this, true, m_bill_data.CATEGID, m_bill_data.SUBCATEGID);
         if (dlg.ShowModal() == wxID_OK)
         {
             m_bill_data.CATEGID = dlg.getCategId();

@@ -24,15 +24,11 @@ class mm_html_template;
 
 mmReportForecast::mmReportForecast(): mmPrintableBase(_("Forecast"))
 {
+    setReportParameters(Reports::ForecastReport);
 }
 
 mmReportForecast::~mmReportForecast()
 {
-}
-
-int mmReportForecast::report_parameters()
-{
-    return RepParams::SINGLE_DATE;
 }
 
 wxString mmReportForecast::getHTMLText()
@@ -75,7 +71,7 @@ wxString mmReportForecast::getHTMLText()
         , today.FormatISOTime());
     report(L"TODAY") = current_day_time;
     report(L"GRAND") = wxString::Format("%ld", static_cast<long>(amount_by_day.size()));
-    report(L"HTMLSCALE") = wxString::Format("%d", Option::instance().HtmlFontSize());
+    report(L"HTMLSCALE") = wxString::Format("%d", Option::instance().getHtmlFontSize());
 
     wxString out = wxEmptyString;
     try 
@@ -91,7 +87,7 @@ wxString mmReportForecast::getHTMLText()
         return _("Caught exception");
     }
 
-	return out;
+    return out;
 }
 
 const char * mmReportForecast::m_template = R"(
@@ -101,9 +97,9 @@ const char * mmReportForecast::m_template = R"(
     <meta charset="UTF-8" />
     <meta http - equiv = "Content-Type" content = "text/html" />
     <title><TMPL_VAR REPORTNAME></title>
-    <script src = "ChartNew.js"></script>
-    <script src = "sorttable.js"></script>
-    <link href = "master.css" rel = "stylesheet" />
+    <script src = "memory:ChartNew.js"></script>
+    <script src = "memory:sorttable.js"></script>
+    <link href = "memory:master.css" rel = "stylesheet" />
     <style>
         canvas {max-height: 400px; min-height: 100px;}
         body {font-size: <TMPL_VAR HTMLSCALE>%;};

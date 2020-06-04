@@ -1,4 +1,4 @@
-/*******************************************************
+﻿/*******************************************************
 Copyright (C) 2006 Madhan Kanagavel
 Copyright (C) 2014 - 2020 Nikolay Akimov
 
@@ -34,69 +34,6 @@ Copyright (C) 2014 - 2020 Nikolay Akimov
 
 #include "model/allmodel.h"
 
-
-
-
-class WebViewHandlerHomePage : public wxWebViewHandler
-{
-public:
-    WebViewHandlerHomePage(mmHomePagePanel *panel, const wxString& protocol)
-        : wxWebViewHandler(protocol)
-    {
-        m_reportPanel = panel;
-    }
-
-    virtual ~WebViewHandlerHomePage()
-    {
-    }
-
-    virtual wxFSFile* GetFile(const wxString &uri)
-    {
-        mmGUIFrame* frame = m_reportPanel->m_frame;
-        wxString sData;
-        if (uri.StartsWith("assets:", &sData))
-        {
-            frame->setNavTreeSection(_("Assets"));
-            wxCommandEvent evt(wxEVT_COMMAND_MENU_SELECTED, MENU_ASSETS);
-            frame->GetEventHandler()->AddPendingEvent(evt);
-        }
-        else if (uri.StartsWith("billsdeposits:", &sData))
-        {
-            frame->setNavTreeSection(_("Recurring Transactions"));
-            wxCommandEvent evt(wxEVT_COMMAND_MENU_SELECTED, MENU_BILLSDEPOSITS);
-            frame->GetEventHandler()->AddPendingEvent(evt);
-        }
-        else if (uri.StartsWith("acct:", &sData))
-        {
-            long id = -1;
-            sData.ToLong(&id);
-            const Model_Account::Data* account = Model_Account::instance().get(id);
-            if (account) {
-                frame->setGotoAccountID(id);
-                frame->setAccountNavTreeSection(account->ACCOUNTNAME);
-                wxCommandEvent evt(wxEVT_COMMAND_MENU_SELECTED, MENU_GOTOACCOUNT);
-                frame->GetEventHandler()->AddPendingEvent(evt);
-            }
-        }
-        else if (uri.StartsWith("stock:", &sData))
-        {
-            long id = -1;
-            sData.ToLong(&id);
-            const Model_Account::Data* account = Model_Account::instance().get(id);
-            if (account) {
-                frame->setGotoAccountID(id);
-                frame->setAccountNavTreeSection(account->ACCOUNTNAME);
-                wxCommandEvent evt(wxEVT_COMMAND_MENU_SELECTED, MENU_STOCKS);
-                frame->GetEventHandler()->AddPendingEvent(evt);
-            }
-        }
-
-        return nullptr;
-    }
-private:
-    mmHomePagePanel *m_reportPanel;
-};
-
 wxBEGIN_EVENT_TABLE(mmHomePagePanel, wxPanel)
 EVT_WEBVIEW_NAVIGATING(wxID_ANY, mmHomePagePanel::OnLinkClicked)
 wxEND_EVENT_TABLE()
@@ -117,6 +54,7 @@ mmHomePagePanel::mmHomePagePanel(wxWindow *parent, mmGUIFrame *frame
 mmHomePagePanel::~mmHomePagePanel()
 {
     m_frame->menuPrintingEnable(false);
+    clearVFprintedFiles("hp");
 }
 
 wxString mmHomePagePanel::GetHomePageText() const
@@ -134,45 +72,20 @@ bool mmHomePagePanel::Create(wxWindow *parent
     SetExtraStyle(GetExtraStyle() | wxWS_EX_BLOCK_EVENTS);
     wxPanelBase::Create(parent, winid, pos, size, style, name);
 
-    CreateControls();
+    createControls();
     GetSizer()->Fit(this);
     GetSizer()->SetSizeHints(this);
 
-    createHTML();
+    createHtml();
 
     Model_Usage::instance().pageview(this);
 
     return TRUE;
 }
 
-void  mmHomePagePanel::createHTML()
+void  mmHomePagePanel::createHtml()
 {
-    getTemplate();
-    getData();
-    fillData();
-}
-
-void mmHomePagePanel::CreateControls()
-{
-    wxBoxSizer* itemBoxSizer2 = new wxBoxSizer(wxVERTICAL);
-    this->SetSizer(itemBoxSizer2);
-
-    browser_ = wxWebView::New(this, mmID_BROWSER);
-    browser_->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new wxWebViewFSHandler("memory")));
-    browser_->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new WebViewHandlerHomePage(this, "assets")));
-    browser_->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new WebViewHandlerHomePage(this, "billsdeposits")));
-    browser_->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new WebViewHandlerHomePage(this, "acct")));
-    browser_->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new WebViewHandlerHomePage(this, "stock")));
-    itemBoxSizer2->Add(browser_, 1, wxGROW | wxALL, 0);
-}
-
-void mmHomePagePanel::PrintPage()
-{
-    browser_->Print();
-}
-
-void mmHomePagePanel::getTemplate()
-{
+    // Read template from file
     m_templateText.clear();
     const wxString template_path = mmex::getPathResource(mmex::HOME_PAGE_TEMPLATE);
     wxFileInputStream input(template_path);
@@ -181,24 +94,48 @@ void mmHomePagePanel::getTemplate()
     {
         m_templateText += text.ReadLine() + "\n";
     }
+
+    insertDataIntoTemplate();
+    fillData();
 }
 
-void mmHomePagePanel::getData()
+void mmHomePagePanel::createControls()
 {
-    m_frames["HTMLSCALE"] = wxString::Format("%d", Option::instance().HtmlFontSize());
- 
+    wxBoxSizer* itemBoxSizer2 = new wxBoxSizer(wxVERTICAL);
+    this->SetSizer(itemBoxSizer2);
+
+    browser_ = wxWebView::New(this, mmID_BROWSER);
+#ifndef _DEBUG
+    browser_->EnableContextMenu(false);
+#endif
+    browser_->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new wxWebViewFSHandler("memory")));
+
+    Bind(wxEVT_WEBVIEW_NEWWINDOW, &mmHomePagePanel::OnNewWindow, this, browser_->GetId());
+
+    itemBoxSizer2->Add(browser_, 1, wxGROW | wxALL, 0);
+}
+
+void mmHomePagePanel::PrintPage()
+{
+    browser_->Print();
+}
+
+void mmHomePagePanel::insertDataIntoTemplate()
+{
+    m_frames["HTMLSCALE"] = wxString::Format("%d", Option::instance().getHtmlFontSize());
+
     double tBalance = 0.0, cardBalance = 0.0, termBalance = 0.0, cashBalance = 0.0, loanBalance = 0.0;
 
     htmlWidgetAccounts account_stats;
     m_frames["ACCOUNTS_INFO"] = account_stats.displayAccounts(tBalance, Model_Account::CHECKING);
     m_frames["CARD_ACCOUNTS_INFO"] = account_stats.displayAccounts(cardBalance, Model_Account::CREDIT_CARD);
     tBalance += cardBalance;
-    
+
     // Accounts
     m_frames["CASH_ACCOUNTS_INFO"] = account_stats.displayAccounts(cashBalance, Model_Account::CASH);
     tBalance += cashBalance;
 
-    m_frames["LOAN_ACCOUNTS_INFO"] = account_stats.displayAccounts(loanBalance,  Model_Account::LOAN);
+    m_frames["LOAN_ACCOUNTS_INFO"] = account_stats.displayAccounts(loanBalance, Model_Account::LOAN);
     tBalance += loanBalance;
 
     m_frames["TERM_ACCOUNTS_INFO"] = account_stats.displayAccounts(termBalance, Model_Account::TERM);
@@ -229,6 +166,8 @@ void mmHomePagePanel::getData()
     m_frames["STATISTICS"] = stat_widget.getHTMLText();
     m_frames["TOGGLES"] = getToggles();
 
+    htmlWidgetCurrency currency_rates;
+    m_frames["CURRENCY_RATES"] = currency_rates.getHtmlText();
 }
 
 const wxString mmHomePagePanel::getToggles()
@@ -239,56 +178,117 @@ const wxString mmHomePagePanel::getToggles()
 
 void mmHomePagePanel::fillData()
 {
-	for (const auto& entry : m_frames)
-	{
-		m_templateText.Replace(wxString::Format("<TMPL_VAR %s>", entry.first), entry.second);
-	}
-	Model_Report::outputReportFile(m_templateText, "index");
-	browser_->LoadURL(getURL(mmex::getReportFullFileName("index")));
+    for (const auto& entry : m_frames)
+    {
+        m_templateText.Replace(wxString::Format("<TMPL_VAR %s>", entry.first), entry.second);
+    }
+
+    const auto name = getVFname4print("hp", m_templateText);
+    browser_->LoadURL(name);
+
 }
 
 
 void mmHomePagePanel::OnLinkClicked(wxWebViewEvent& event)
 {
-	const wxString& url = event.GetURL();
+    const wxString& url = event.GetURL();
 
-	if (url.Contains("#"))
-	{
-		wxString name = url.AfterLast('#');
+    if (url.Contains("#"))
+    {
+        wxString name = url.AfterLast('#');
 
-		//Convert the JSON string from database to a json object
-		wxString str = Model_Infotable::instance().GetStringInfo("HOME_PAGE_STATUS", "{}");
+        //Convert the JSON string from database to a json object
+        wxString str = Model_Infotable::instance().GetStringInfo("HOME_PAGE_STATUS", "{}");
 
-		wxLogDebug("======= mmHomePagePanel::OnLinkClicked =======");
-		wxLogDebug("Name = %s", name);
+        wxLogDebug("======= mmHomePagePanel::OnLinkClicked =======");
+        wxLogDebug("Name = %s", name);
 
-		Document json_doc;
-		if (json_doc.Parse(str.c_str()).HasParseError())
-			return;
+        Document json_doc;
+        if (json_doc.Parse(str.utf8_str()).HasParseError())
+            return;
 
-		Document::AllocatorType& json_allocator = json_doc.GetAllocator();
-		wxLogDebug("RapidJson Input\n%s", JSON_PrettyFormated(json_doc));
+        Document::AllocatorType& json_allocator = json_doc.GetAllocator();
+        wxLogDebug("RapidJson Input\n%s", JSON_PrettyFormated(json_doc));
 
-        const wxString type[] = { "TOP_CATEGORIES", "INVEST", "ACCOUNTS_INFO", "CARD_ACCOUNTS_INFO", "CASH_ACCOUNTS_INFO", "LOAN_ACCOUNTS_INFO", "TERM_ACCOUNTS_INFO" };
+        const wxString type[] = {
+            "TOP_CATEGORIES"
+            , "INVEST"
+            , "ACCOUNTS_INFO"
+            , "CARD_ACCOUNTS_INFO"
+            , "CASH_ACCOUNTS_INFO"
+            , "LOAN_ACCOUNTS_INFO"
+            , "TERM_ACCOUNTS_INFO"
+            , "CURRENCY_RATES"
+        };
 
-		for (const auto& entry : type)
-		{
-			if (name != entry) continue;
+        for (const auto& entry : type)
+        {
+            if (name != entry) continue;
 
-			Value v_type(entry.c_str(), json_allocator);
-			if (json_doc.HasMember(v_type) && json_doc[v_type].IsBool())
-			{
-				json_doc[v_type] = !json_doc[v_type].GetBool();
-			}
-			else
-			{
-				json_doc.AddMember(v_type, true, json_allocator);
-			}
-		}
+            Value v_type(entry.utf8_str(), json_allocator);
+            if (json_doc.HasMember(v_type) && json_doc[v_type].IsBool())
+            {
+                json_doc[v_type] = !json_doc[v_type].GetBool();
+            }
+            else
+            {
+                json_doc.AddMember(v_type, true, json_allocator);
+            }
+        }
 
-		wxLogDebug("Saving updated RapidJson\n%s", JSON_PrettyFormated(json_doc));
-		wxLogDebug("======= mmHomePagePanel::OnLinkClicked =======");
+        wxLogDebug("Saving updated RapidJson\n%s", JSON_PrettyFormated(json_doc));
+        wxLogDebug("======= mmHomePagePanel::OnLinkClicked =======");
 
-		Model_Infotable::instance().Set("HOME_PAGE_STATUS", JSON_PrettyFormated(json_doc));
-	}
+        Model_Infotable::instance().Set("HOME_PAGE_STATUS", JSON_PrettyFormated(json_doc));
+    }
+}
+
+void mmHomePagePanel::OnNewWindow(wxWebViewEvent& evt)
+{
+    const wxString uri = evt.GetURL();
+    wxString sData;
+
+    wxRegEx pattern(R"(^https?:\/\/)");
+    if (pattern.Matches(uri))
+    {
+        wxLaunchDefaultBrowser(uri);
+    }
+    else if (uri.StartsWith("assets:", &sData))
+    {
+        m_frame->setNavTreeSection(_("Assets"));
+        wxCommandEvent event(wxEVT_COMMAND_MENU_SELECTED, MENU_ASSETS);
+        m_frame->GetEventHandler()->AddPendingEvent(event);
+    }
+    else if (uri.StartsWith("billsdeposits:", &sData))
+    {
+        m_frame->setNavTreeSection(_("Recurring Transactions"));
+        wxCommandEvent event(wxEVT_COMMAND_MENU_SELECTED, MENU_BILLSDEPOSITS);
+        m_frame->GetEventHandler()->AddPendingEvent(event);
+    }
+    else if (uri.StartsWith("acct:", &sData))
+    {
+        long id = -1;
+        sData.ToLong(&id);
+        const Model_Account::Data* account = Model_Account::instance().get(id);
+        if (account) {
+            m_frame->setGotoAccountID(id);
+            m_frame->setAccountNavTreeSection(account->ACCOUNTNAME);
+            wxCommandEvent event(wxEVT_COMMAND_MENU_SELECTED, MENU_GOTOACCOUNT);
+            m_frame->GetEventHandler()->AddPendingEvent(event);
+        }
+    }
+    else if (uri.StartsWith("stock:", &sData))
+    {
+        long id = -1;
+        sData.ToLong(&id);
+        const Model_Account::Data* account = Model_Account::instance().get(id);
+        if (account) {
+            m_frame->setGotoAccountID(id);
+            m_frame->setAccountNavTreeSection(account->ACCOUNTNAME);
+            wxCommandEvent event(wxEVT_COMMAND_MENU_SELECTED, MENU_STOCKS);
+            m_frame->GetEventHandler()->AddPendingEvent(event);
+        }
+    }
+
+    evt.Skip();
 }

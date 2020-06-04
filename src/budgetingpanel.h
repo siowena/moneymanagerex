@@ -55,13 +55,13 @@ class mmBudgetingPanel : public mmPanelBase
     wxDECLARE_EVENT_TABLE();
 
 public:
-	mmBudgetingPanel(int budgetYearID
-		, wxWindow *parent, mmGUIFrame *frame
-		, wxWindowID winid = wxID_ANY
-		, const wxPoint& pos = wxDefaultPosition
-		, const wxSize& size = wxDefaultSize
-		, long style = wxTAB_TRAVERSAL | wxNO_BORDER
-		, const wxString& name = "mmBudgetingPanel");
+    mmBudgetingPanel(int budgetYearID
+        , wxWindow *parent, mmGUIFrame *frame
+        , wxWindowID winid = wxID_ANY
+        , const wxPoint& pos = wxDefaultPosition
+        , const wxSize& size = wxDefaultSize
+        , long style = wxTAB_TRAVERSAL | wxNO_BORDER
+        , const wxString& name = "mmBudgetingPanel");
     ~mmBudgetingPanel();
 
     /* updates the checking panel data */
@@ -110,6 +110,7 @@ private:
     wxStaticText* expenses_estimated_;
     wxStaticText* expenses_actual_;
     wxStaticText* expenses_diff_;
+    wxButton* m_bitmapTransFilter;
 
     bool Create(wxWindow *parent, wxWindowID winid
         , const wxPoint& pos = wxDefaultPosition
@@ -126,7 +127,7 @@ private:
 
     /* Event handlers for Buttons */
     void OnViewPopupSelected(wxCommandEvent& event);
-    void OnMouseLeftDown(wxMouseEvent& event);
+    void OnMouseLeftDown(wxCommandEvent& event);
 
     enum EColumn
     {

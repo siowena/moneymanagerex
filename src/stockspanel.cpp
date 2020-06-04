@@ -22,17 +22,12 @@
 #include "constants.h"
 #include "images_list.h"
 #include "mmSimpleDialogs.h"
+#include "mmTips.h"
 #include "stockdialog.h"
 #include "sharetransactiondialog.h"
 #include "util.h"
 
 #include "model/allmodel.h"
-
-static const wxString STOCKTIPS[] = { 
-    wxTRANSLATE("Using MMEX it is possible to track stocks/mutual funds investments."),
-    wxTRANSLATE("To create new stocks entry the Symbol, Number of shares and Purchase prise should be entered."),
-    wxTRANSLATE("Sample of UK (HSBC HLDG) share: HSBA.L"),
-    wxTRANSLATE("If the Stock Name field is empty it will be filed when prices updated") };
 
 enum {
     IDC_PANEL_STOCKS_LISTCTRL = wxID_HIGHEST + 1900,
@@ -74,7 +69,7 @@ StocksListCtrl::StocksListCtrl(mmStocksPanel* cp, wxWindow *parent, wxWindowID w
     , m_stock_panel(cp)
     , m_imageList(0)
 {
-    int x = Option::instance().IconSize();
+    int x = Option::instance().getIconSize();
     m_imageList = new wxImageList(x, x);
     m_imageList->Add(mmBitmap(png::PROFIT));
     m_imageList->Add(mmBitmap(png::LOSS));
@@ -470,14 +465,14 @@ void StocksListCtrl::doRefreshItems(int trx_id)
 
 /*******************************************************/
 BEGIN_EVENT_TABLE(mmStocksPanel, wxPanel)
-    EVT_BUTTON(wxID_NEW,         mmStocksPanel::OnNewStocks)
-    EVT_BUTTON(wxID_EDIT,        mmStocksPanel::OnEditStocks)
-    EVT_BUTTON(wxID_ADD,         mmStocksPanel::OnEditStocks)
+    EVT_BUTTON(wxID_NEW,          mmStocksPanel::OnNewStocks)
+    EVT_BUTTON(wxID_EDIT,         mmStocksPanel::OnEditStocks)
+    EVT_BUTTON(wxID_ADD,          mmStocksPanel::OnEditStocks)
     EVT_BUTTON(wxID_VIEW_DETAILS, mmStocksPanel::OnEditStocks)
-    EVT_BUTTON(wxID_DELETE,      mmStocksPanel::OnDeleteStocks)
-    EVT_BUTTON(wxID_MOVE_FRAME,  mmStocksPanel::OnMoveStocks)
-    EVT_BUTTON(wxID_FILE,        mmStocksPanel::OnOpenAttachment)
-    EVT_BUTTON(wxID_REFRESH,     mmStocksPanel::OnRefreshQuotes)
+    EVT_BUTTON(wxID_DELETE,       mmStocksPanel::OnDeleteStocks)
+    EVT_BUTTON(wxID_MOVE_FRAME,   mmStocksPanel::OnMoveStocks)
+    EVT_BUTTON(wxID_FILE,         mmStocksPanel::OnOpenAttachment)
+    EVT_BUTTON(wxID_REFRESH,      mmStocksPanel::OnRefreshQuotes)
 END_EVENT_TABLE()
 /*******************************************************/
 mmStocksPanel::mmStocksPanel(int accountID
@@ -758,7 +753,7 @@ void mmStocksPanel::updateHeader()
     double total = investment_balance.first; 
 
     const wxString& diffStr = Model_Currency::toCurrency(total > originalVal ? total - originalVal : originalVal - total, m_currency);
-    double diffPercents = diffPercents = (total > originalVal ? total / originalVal*100.0 - 100.0 : -(total / originalVal*100.0 - 100.0));
+    double diffPercents = (total > originalVal ? total / originalVal*100.0 - 100.0 : -(total / originalVal*100.0 - 100.0));
     const wxString lbl = wxString::Format("%s     %s     %s     %s (%s %%)"
         , wxString::Format(_("Total Shares: %s"), Total_Shares())
         , wxString::Format(_("Total: %s"), Model_Currency::toCurrency(total + initVal, m_currency))
@@ -798,7 +793,8 @@ void mmStocksPanel::OnOpenAttachment(wxCommandEvent& event)
 void mmStocksPanel::OnRefreshQuotes(wxCommandEvent& WXUNUSED(event))
 {
     wxString sError = "";
-    if (onlineQuoteRefresh(sError))
+    bool ok = onlineQuoteRefresh(sError);
+    if (ok)
     {
         const wxString header = _("Stock prices successfully updated");
         stock_details_->SetLabelText(header);
@@ -844,22 +840,19 @@ bool mmStocksPanel::onlineQuoteRefresh(wxString& msg)
     stock_details_->SetLabelText(_("Connecting..."));
 
     std::map<wxString, double > stocks_data;
-    if (!get_yahoo_prices(symbols, stocks_data, base_currency_symbol, msg, yahoo_price_type::SHARES))
-    {
+    bool ok = get_yahoo_prices(symbols, stocks_data, base_currency_symbol, msg, yahoo_price_type::SHARES);
+    if (!ok) {
         return false;
     }
 
-    if (stocks_data.empty())
-    {
-        msg = _("Quotes not found");
-        return false;
-    }
+    std::map<wxString, double> nonYahooSymbols;
 
     Model_StockHistory::instance().Savepoint();
     for (auto &s : stock_list)
     {
         std::map<wxString, double>::const_iterator it = stocks_data.find(s.SYMBOL.Upper());
         if (it == stocks_data.end()) {
+            nonYahooSymbols[s.SYMBOL.Upper()] = 0;
             continue;
         }
 
@@ -869,13 +862,17 @@ bool mmStocksPanel::onlineQuoteRefresh(wxString& msg)
         {
             msg += wxString::Format("%s\t: %0.6f -> %0.6f\n", s.SYMBOL, s.CURRENTPRICE, dPrice);
             s.CURRENTPRICE = dPrice;
-            if (s.STOCKNAME.empty()) s.STOCKNAME = s.SYMBOL;
             Model_Stock::instance().save(&s);
             Model_StockHistory::instance().addUpdate(s.SYMBOL
                 , wxDate::Now(), dPrice, Model_StockHistory::ONLINE);
         }
     }
     Model_StockHistory::instance().ReleaseSavepoint();
+
+    for (const auto& entry : nonYahooSymbols)
+    {
+        msg += wxString::Format("%s\t: %s\n", entry.first, _("Missing"));
+    }
 
     // Now refresh the display
     int selected_id = -1;

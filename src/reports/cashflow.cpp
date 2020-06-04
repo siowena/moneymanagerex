@@ -31,9 +31,8 @@ static const wxString COLORS [] = {
     , "rgba(240, 248, 255, 0.5)"
 };
 
-mmReportCashFlow::mmReportCashFlow(TYPE cashflowreporttype)
+mmReportCashFlow::mmReportCashFlow()
     : mmPrintableBase(_("Cash Flow"))
-    , cashFlowReportType_(cashflowreporttype)
     , today_(wxDateTime::Today())
 {
     m_only_active = true;
@@ -41,11 +40,6 @@ mmReportCashFlow::mmReportCashFlow(TYPE cashflowreporttype)
 
 mmReportCashFlow::~mmReportCashFlow()
 {
-}
-
-int mmReportCashFlow::report_parameters()
-{
-    return RepParams::ACCOUNTS_LIST | RepParams::CHART;
 }
 
 wxString mmReportCashFlow::getHTMLText()
@@ -235,25 +229,26 @@ wxString mmReportCashFlow::getHTMLText_i()
             LineGraphData val;
             val.amount = entry.amount + tInitialBalance;
             val.xPos = mmGetDateForDisplay(entry.label);
-            wxDate dateDt;
-            dateDt.ParseISODate(entry.label);
+            wxDate d;
+            d.ParseISODate(entry.label);
 
-            if (!monthly_report && (dateDt.GetMonth() != precDateDt.GetMonth()))
-                val.label = wxGetTranslation(dateDt.GetEnglishMonthName(dateDt.GetMonth()));
-            else if (monthly_report && (dateDt.GetYear() != precDateDt.GetYear()))
-                val.label = wxString::Format("%i", dateDt.GetYear());
+            if (!monthly_report && (d.GetMonth() != precDateDt.GetMonth()))
+                val.label = wxString::Format("%s %i", wxGetTranslation(wxDateTime::GetEnglishMonthName(d.GetMonth())), d.GetYear());
+                //wxGetTranslation(dateDt.GetEnglishMonthName(dateDt.GetMonth()));
+            else if (monthly_report && (d.GetYear() != precDateDt.GetYear()))
+                val.label = wxString::Format("%i", d.GetYear());
             else
                 val.label = "";
 
             aData.push_back(val);
-            precDateDt = dateDt;
+            precDateDt = d;
         }
 
         if (!aData.empty())
         {
             hb.addDivRow();
             hb.addDivCol17_67();
-            hb.addLineChart(aData, "cashflow", 0, 1000, 400, false, monthly_report);
+            hb.addLineChart(aData, "cashflow", 0, 640, 480, false, monthly_report);
             hb.endDiv();
             hb.endDiv();
         }
@@ -307,3 +302,18 @@ wxString mmReportCashFlow::getHTMLText_i()
 
     return hb.getHTMLText();
 }
+
+mmReportCashFlowDaily::mmReportCashFlowDaily()
+    : mmReportCashFlow()
+{
+    cashFlowReportType_ = TYPE::DAILY;
+    setReportParameters(Reports::DailyCashFlow);
+}
+
+mmReportCashFlowMonthly::mmReportCashFlowMonthly()
+    : mmReportCashFlow()
+{
+    cashFlowReportType_ = TYPE::MONTHLY;
+    setReportParameters(Reports::MonthlyCashFlow);
+}
+

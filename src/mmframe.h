@@ -30,6 +30,7 @@ Copyright (C) 2014 Guan Lisheng (guanlisheng@gmail.com)
 #include "option.h"
 #include "constants.h"
 #include "util.h"
+#include "paths.h"
 
 //----------------------------------------------------------------------------
 class wxSQLite3Database;
@@ -64,23 +65,22 @@ public:
                 Option::instance().FinancialYearStartMonth() != "1");
     }
     /// return the index (mmex::EDocFile) to return the correct file.
-    int getHelpFileIndex() const
-    {
-        return helpFileIndex_;
-    }
+    int getHelpFileIndex() const;
+    void setHelpFileIndex();
+
 
     void setAccountNavTreeSection(const wxString& accountName);
     bool setNavTreeSection(const wxString &sectionName);
     void menuPrintingEnable(bool enable);
     void OnToggleFullScreen(wxCommandEvent& WXUNUSED(event));
     void OnClose(wxCloseEvent&);
-    std::vector<WebsiteNews> g_WebsiteNewsList;
 
     void RefreshNavigationTree();
 
 private:
+    std::vector<WebsiteNews> websiteNewsArray_;
     std::vector<const ModelBase*> m_all_models;
-private:
+
     /* handles to SQLite Database */
     wxSharedPtr<wxSQLite3Database> m_db;
 
@@ -104,7 +104,7 @@ private:
     wxTreeCtrl* m_nav_tree_ctrl;
     wxMenuBar *menuBar_;
     wxToolBar* toolBar_;
-
+private:
     mmTreeItemData* selectedItemData_;
 
     wxTreeItemId getTreeItemfor(const wxTreeItemId& itemID, const wxString& accountName) const;
@@ -136,7 +136,7 @@ private:
     mmCheckingPanel* checkingAccountPage_;
     void createCheckingAccountPage(int accountID);
     void createStocksAccountPage(int accountID);
-
+private:
     mmBillsDepositsPanel* billsDepositsPanel_;
     void createBillsDeposits();
 
@@ -145,18 +145,18 @@ private:
 
     void createControls();
     /*Set nav tree items status from JSON data with stored in DB*/
-    void loadNavTreeItemsStatus();
+    void loadNavigationTreeItemsStatusFromJson();
     /*save Settings LASTFILENAME AUIPERSPECTIVE SIZES*/
     void saveSettings();
     void menuEnableItems(bool enable);
     void updateNavTreeControl();
-    void updateReportNavigation(wxTreeItemId& reports, wxTreeItemId& budgeting);
+    void updateReportNavigation(wxTreeItemId& reports);
     void showTreePopupMenu(const wxTreeItemId& id, const wxPoint& pt);
     void showBeginAppDialog(bool fromScratch = false);
     void SetDataBaseParameters(const wxString& fileName);
     void OnLaunchAccountWebsite(wxCommandEvent& event);
     void OnAccountAttachments(wxCommandEvent& event);
-
+private:
     void OnNew(wxCommandEvent& event);
     void OnOpen(wxCommandEvent& event);
     void OnConvertEncryptedDB(wxCommandEvent& event);
@@ -179,7 +179,7 @@ private:
     void OnAssets(wxCommandEvent& event);
     void OnGotoAccount(wxCommandEvent& WXUNUSED(event));
     void OnGotoStocksAccount(wxCommandEvent& WXUNUSED(event));
-
+private:
     bool m_hide_share_accounts;
     void OnHideShareAccounts(wxCommandEvent &event);
     void OnChangeGUILanguage(wxCommandEvent &event);
@@ -188,7 +188,6 @@ private:
     void OnViewLinks(wxCommandEvent &event);
     void OnViewBudgetFinancialYears(wxCommandEvent& WXUNUSED(event));
     void OnViewBudgetTransferTotal(wxCommandEvent& WXUNUSED(event));
-    void OnViewBudgetSetupSummary(wxCommandEvent& WXUNUSED(event));
     void OnViewBudgetCategorySummary(wxCommandEvent& WXUNUSED(event));
     void OnViewIgnoreFutureTransactions(wxCommandEvent& WXUNUSED(event));
     void OnViewToolbarUpdateUI(wxUpdateUIEvent &event);
@@ -199,7 +198,7 @@ private:
     void OnEditAccount(wxCommandEvent& event);
     void OnDeleteAccount(wxCommandEvent& event);
     void OnReallocateAccount(wxCommandEvent& event);
-
+private:
     void OnOrgCategories(wxCommandEvent& event);
     void OnOrgPayees(wxCommandEvent& event);
     void OnCategoryRelocation(wxCommandEvent& event);
@@ -210,6 +209,7 @@ private:
     void OnOptions(wxCommandEvent& event);
     void OnBudgetSetupDialog(wxCommandEvent& event);
     void OnCurrency(wxCommandEvent& event);
+    void OnRates(wxCommandEvent& event);
     void OnTransactionReport(wxCommandEvent& event);
     void OnCustomFieldsManager(wxCommandEvent& event);
     void OnGeneralReportManager(wxCommandEvent& event);
@@ -221,7 +221,7 @@ private:
     void OnAbout(wxCommandEvent& event);
     void OnSimpleURLOpen(wxCommandEvent& event);
     void OnReportBug(wxCommandEvent& event);
-
+private:
     void OnItemRightClick(wxTreeEvent& event);
     void OnItemMenu(wxTreeEvent& event);
     void OnSelChanged(wxTreeEvent& event);
@@ -237,7 +237,7 @@ private:
 
     void processPendingEvents();
     void ReallocateAccount(int accountID);
-
+private:
     /* Recent Files */
     mmFileHistory* m_recentFiles;
     wxMenu* m_menuRecentFiles;
@@ -252,7 +252,7 @@ private:
     CommitCallbackHook* m_commit_callback_hook;
     UpdateCallbackHook* m_update_callback_hook;
     void ShutdownDatabase();
-
+private:
     // any class wishing to process wxWindows events must use this macro
     wxDECLARE_EVENT_TABLE();
     enum
@@ -298,6 +298,7 @@ private:
         MENU_SHOW_APPSTART,
         MENU_EXPORT_HTML,
         MENU_CURRENCY,
+        MENU_RATES,
         MENU_LANG,
         MENU_LANG_MAX = MENU_LANG + wxLANGUAGE_USER_DEFINED,
 
@@ -349,6 +350,10 @@ private:
         AUTO_REPEAT_TRANSACTIONS_TIMER_ID,
     };
 };
+
+
+inline int mmGUIFrame::getHelpFileIndex() const { return helpFileIndex_; }
+inline void mmGUIFrame::setHelpFileIndex() { helpFileIndex_ = mmex::EDocFile::HTML_INDEX; }
 //----------------------------------------------------------------------------
 #endif // MM_FRAME_H_
 //----------------------------------------------------------------------------

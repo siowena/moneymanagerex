@@ -60,7 +60,7 @@ mmPayeeDialog::mmPayeeDialog(wxWindow *parent, bool payee_choose, const wxString
     , debug_(false)
 #endif
 {
-    if (debug_) ColName_[PAYEE_ID] = _("#");
+    if (debug_) ColName_[PAYEE_ID] = "#";
     ColName_[PAYEE_NAME] = _("Name");
     ColName_[PAYEE_CATEGORY]   = _("Default Category");
 
@@ -152,7 +152,7 @@ void mmPayeeDialog::fillControls()
     }
 }
 
-void mmPayeeDialog::OnDataEditStart(wxDataViewEvent& event)
+void mmPayeeDialog::OnDataEditStart(wxDataViewEvent& WXUNUSED(event))
 {
     m_payee_rename = m_payee_id;
 }
@@ -195,7 +195,7 @@ void mmPayeeDialog::OnListItemSelected(wxDataViewEvent& event)
         m_payee_id = static_cast<int>(payeeListBox_->GetItemData(item));
 }
 
-void mmPayeeDialog::OnListItemActivated(wxDataViewEvent& event)
+void mmPayeeDialog::OnListItemActivated(wxDataViewEvent& WXUNUSED(event))
 {
     if (m_payee_id > 0 && m_payee_choose)
         EndModal(wxID_OK);
@@ -284,7 +284,7 @@ void mmPayeeDialog::DefineDefaultCategory()
     Model_Payee::Data *payee = Model_Payee::instance().get(m_payee_id);
     if (payee)
     {
-        mmCategDialog dlg(this, payee->CATEGID, payee->SUBCATEGID, false);
+        mmCategDialog dlg(this, true, payee->CATEGID, payee->SUBCATEGID);
         if (dlg.ShowModal() == wxID_OK)
         {
             payee->CATEGID = dlg.getCategId();
@@ -342,7 +342,7 @@ void mmPayeeDialog::OnMenuSelected(wxCommandEvent& event)
     }
 }
 
-void mmPayeeDialog::OnMagicButton(wxCommandEvent& event)
+void mmPayeeDialog::OnMagicButton(wxCommandEvent& WXUNUSED(event))
 {
     wxDataViewEvent evt;
     OnItemRightClick(evt);

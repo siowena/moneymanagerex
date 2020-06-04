@@ -63,13 +63,13 @@ namespace version
     extern bool isStable();
     extern const wxString generateProgramVersion
         (int vMajor, int vMinor, int vPatch, int vAlpha, int vBeta, int vRC);
-	int getDbLatestVersion();
+    int getDbLatestVersion();
 }
 
 namespace weblink
 {
     const wxString addReferralToURL(const wxString& BaseURL, const wxString& CampSource);
-	extern const wxString GA;
+    extern const wxString GA;
     extern const wxString WebSite;
     extern const wxString Update;
     extern const wxString Releases;
@@ -99,6 +99,7 @@ namespace weblink
 } // namespace weblink
 } // namespace mmex
 
+extern const wxString VIEW_TRANS_FILTER_DIALOG_STR;
 extern const wxString VIEW_TRANS_ALL_STR;
 extern const wxString VIEW_TRANS_TODAY_STR;
 extern const wxString VIEW_TRANS_CURRENT_MONTH_STR;
@@ -108,9 +109,10 @@ extern const wxString VIEW_TRANS_LAST_MONTH_STR;
 extern const wxString VIEW_TRANS_LAST_3MONTHS_STR;
 extern const wxString VIEW_TRANS_LAST_12MONTHS_STR;
 extern const wxString VIEW_TRANS_CURRENT_YEAR_STR;
-extern const wxString VIEW_TRANS_CURRENT_FIN_YEAR_STR;
+extern const wxString VIEW_TRANS_CRRNT_FIN_YEAR_STR;
 extern const wxString VIEW_TRANS_LAST_YEAR_STR;
 extern const wxString VIEW_TRANS_LAST_FIN_YEAR_STR;
+extern const wxString VIEW_TRANS_SINCE_STATEMENT_STR;
 
 extern const wxString VIEW_ACCOUNTS_ALL_STR;
 extern const wxString VIEW_ACCOUNTS_OPEN_STR;
@@ -118,13 +120,13 @@ extern const wxString VIEW_ACCOUNTS_CLOSED_STR;
 extern const wxString VIEW_ACCOUNTS_FAVORITES_STR;
 
 extern const wxString LANGUAGE_PARAMETER;
+extern const wxString INIDB_USE_CURRENCY_HISTORY;
 extern const wxString INIDB_USE_TRANSACTION_SOUND;
 extern const wxString INIDB_USE_ORG_DATE_COPYPASTE;
 extern const wxString INIDB_SEND_USAGE_STATS;
 
 extern const wxString INIDB_BUDGET_FINANCIAL_YEARS;
 extern const wxString INIDB_BUDGET_INCLUDE_TRANSFERS;
-extern const wxString INIDB_BUDGET_SETUP_WITHOUT_SUMMARY;
 extern const wxString INIDB_BUDGET_SUMMARY_WITHOUT_CATEG;
 extern const wxString INIDB_IGNORE_FUTURE_TRANSACTIONS;
 
@@ -151,7 +153,6 @@ enum id
     MENU_GOTOACCOUNT,
     MENU_ASSETS,
     MENU_VIEW_BUDGET_FINANCIAL_YEARS,
-    MENU_VIEW_BUDGET_SETUP_SUMMARY,
     MENU_VIEW_BUDGET_CATEGORY_SUMMARY,
     MENU_VIEW_BUDGET_TRANSFER_TOTAL,
     MENU_VIEW_IGNORE_FUTURE_TRANSACTIONS,

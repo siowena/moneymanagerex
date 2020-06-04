@@ -50,20 +50,20 @@ public:
 
     wxString BuildPage() const { return GetHomePageText(); }
     void PrintPage();
-    void createHTML();
+    void createHtml();
 
 public:
     mmGUIFrame* m_frame;
 private:
     wxString GetHomePageText() const;
     wxWebView* browser_;
-    void CreateControls();
+    void createControls();
     void sortTable() {}
+    void OnNewWindow(wxWebViewEvent& evt);
 
     wxString m_templateText;
     std::map <wxString, wxString> m_frames;
-    void getTemplate();
-    void getData();
+    void insertDataIntoTemplate();
     void fillData();
     void OnLinkClicked(wxWebViewEvent& event);
     const wxString getToggles();

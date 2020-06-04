@@ -33,15 +33,11 @@
 mmReportBudgetCategorySummary::mmReportBudgetCategorySummary()
 {
     m_chart_selection = 1;
+    setReportParameters(Reports::BudgetCategorySummary);
 }
 
 mmReportBudgetCategorySummary::~mmReportBudgetCategorySummary()
 {}
-
-int mmReportBudgetCategorySummary::report_parameters()
-{
-    return RepParams::BUDGET_DATES | RepParams::CHART;
-}
 
 const wxString mmReportBudgetCategorySummary::actualAmountColour(double amount, double actual, double estimated, bool total) const
 {
@@ -190,7 +186,7 @@ wxString mmReportBudgetCategorySummary::getHTMLText()
     hb.endThead();
 
     categID = -1;
-    double catTotalsAmt = 0.0, catTotalsEstimated = 0.0, catTotalsActual = 0.0;
+    double catTotalsEstimated = 0.0, catTotalsActual = 0.0;
 
     for (const auto& category : categs)
     {
@@ -228,10 +224,9 @@ wxString mmReportBudgetCategorySummary::getHTMLText()
             hb.addMoneyCell(catTotalsActual);
             hb.endTableRow();
 
-            catTotalsAmt = catTotalsEstimated = catTotalsActual = 0.0;
+            catTotalsEstimated = catTotalsActual = 0.0;
         }
 
-        catTotalsAmt += actual;
         catTotalsActual += actual;
         catTotalsEstimated += estimated;
 

@@ -27,6 +27,7 @@
 #include "model/Model_Setting.h"
 #include "LuaGlue/LuaGlue.h"
 #include "sqlite3.h"
+#include <wx/fs_mem.h>
 
 #if defined (__WXMSW__)
     #include <wx/msw/registry.h>
@@ -79,9 +80,6 @@ Model_Report& Model_Report::instance(wxSQLite3Database* db)
 const std::vector<Model_Report::Values> Model_Report::SqlPlaceHolders()
 {
     const wxString def_date = wxDateTime::Today().FormatISODate();
-    const wxString def_year = wxString::Format("%d", wxDateTime::Today().GetYear());
-    const wxString def_day = Model_Infotable::instance().GetStringInfo("FINANCIAL_YEAR_START_DAY", "1");
-    const wxString def_mon = Model_Infotable::instance().GetStringInfo("FINANCIAL_YEAR_START_MONTH", "1");
 
     const std::vector<Model_Report::Values> v = {
     {"&begin_date", "wxDatePickerCtrl", def_date, mmReportsPanel::RepPanel::ID_CHOICE_START_DATE, _("Begin date: ")},
@@ -117,7 +115,7 @@ bool Model_Report::get_objects_from_sql(const wxString& query, PrettyWriter<Stri
     catch (const wxSQLite3Exception& e)
     {
         json_writer.Key("msg");
-        json_writer.String(e.GetMessage().c_str());
+        json_writer.String(e.GetMessage().utf8_str());
         return false;
     }
 
@@ -139,16 +137,16 @@ bool Model_Report::get_objects_from_sql(const wxString& query, PrettyWriter<Stri
                 switch (q.GetColumnType(i))
                 {
                 case WXSQLITE_INTEGER:
-                    json_writer.Key(column_name.c_str());
+                    json_writer.Key(column_name.utf8_str());
                     json_writer.Int(q.GetInt(i));
                     break;
                 case WXSQLITE_FLOAT:
-                    json_writer.Key(column_name.c_str());
+                    json_writer.Key(column_name.utf8_str());
                     json_writer.Double(q.GetDouble(i));
                     break;
                 default:
-                    json_writer.Key(column_name.c_str());
-                    json_writer.String(q.GetString(i).c_str());
+                    json_writer.Key(column_name.utf8_str());
+                    json_writer.String(q.GetString(i).utf8_str());
                     break;
                 }
             }
@@ -162,7 +160,7 @@ bool Model_Report::get_objects_from_sql(const wxString& query, PrettyWriter<Stri
     catch (const wxSQLite3Exception& e)
     {
         json_writer.Key("msg");
-        json_writer.String(e.GetMessage().c_str());
+        json_writer.String(e.GetMessage().utf8_str());
         return false;
     }
 
@@ -226,19 +224,14 @@ bool Model_Report::PrepareSQL(wxString& sql, std::map <wxString, wxString>& rep_
     return true;
 }
 
-wxString Model_Report::get_html(const Data* r)
+int Model_Report::get_html(const Data* r, wxString& out)
 {
     wxString sql = r->SQLCONTENT;
     wxString templatecontent = r->TEMPLATECONTENT;
-    //TODO: if (templatecontent.empty()) somthing like: mmGeneralReportManager::getTemplate(sql)
-
-    mm_html_template report(templatecontent);
-    r->to_template(report);
-
-    loop_t contents;
-
-    loop_t errors;
-    row_t error;
+    if (templatecontent.empty()) {
+        out = _("Template is empty");
+        return 3;
+    }
 
     wxSQLite3ResultSet q;
     int columnCount = 0;
@@ -250,7 +243,8 @@ wxString Model_Report::get_html(const Data* r)
         wxSQLite3Statement stmt = this->db_->PrepareStatement(sql);
         if (!stmt.IsReadOnly())
         {
-            return wxString::Format(_("The SQL script:\n%s \nwill modify database! aborted!"), r->SQLCONTENT);
+            out = wxString::Format(_("The SQL script:\n%s \nwill modify database! aborted!"), r->SQLCONTENT);
+            return -1;
         }
         else
         {
@@ -260,12 +254,19 @@ wxString Model_Report::get_html(const Data* r)
     }
     catch (const wxSQLite3Exception& e)
     {
-        return e.GetMessage();
+        out = e.GetMessage();
+        return e.GetErrorCode();
     }
 
     std::map <std::wstring, int> colHeaders;
 
+    mm_html_template report(templatecontent);
+    r->to_template(report);
+    loop_t contents;
+    loop_t errors;
+    row_t error;
     loop_t columns;
+
     for (int i = 0; i < columnCount; ++i)
     {
         int col_type = q.GetColumnType(i);
@@ -286,11 +287,15 @@ wxString Model_Report::get_html(const Data* r)
         end().open().glue();
 
     bool skip_lua = r->LUACONTENT.IsEmpty();
+
     bool lua_status = state.doString(std::string(r->LUACONTENT.ToUTF8()));
     if (!skip_lua && !lua_status)
     {
         error(L"ERROR") = wxString("failed to doString : ") + r->LUACONTENT + wxString(" err: ") + wxString(state.lastError());
         errors += error;
+    }
+    else {
+        //state.doString(R"(sys_locale=os.setlocale("", "numeric"); print(os.setlocale("C", "numeric"));)");
     }
 
     while (q.NextRow())
@@ -361,6 +366,10 @@ wxString Model_Report::get_html(const Data* r)
     for (const auto& item : result)
         report(item.first) = item.second;
 
+    if (!skip_lua || lua_status) {
+        //state.doString(R"(print(os.setlocale(sys_locale, "numeric"));)");
+    }
+
     report(L"CONTENTS") = contents;
     {
         for (const auto& item : rep_params)
@@ -375,86 +384,26 @@ wxString Model_Report::get_html(const Data* r)
         s.Replace("\\", "\\\\");
         report(L"FILESEPARATOR") = s;
         report(L"LANGUAGE") = Option::instance().getLanguageISO6391();
-        report(L"HTMLSCALE") = wxString::Format("%d", Option::instance().HtmlFontSize());
+        report(L"HTMLSCALE") = wxString::Format("%d", Option::instance().getHtmlFontSize());
     }
     report(L"ERRORS") = errors;
 
-    wxString out = wxEmptyString;
     try
     {
         out = report.Process();
     }
     catch (const syntax_ex& e)
     {
-        return e.what();
+        out = e.what();
+        return 1;
     }
     catch (...)
     {
-        return _("Caught exception");
+        out = _("Caught exception");
+        return 2;
     }
 
-    return out;
-}
-
-void Model_Report::prepareTempFolder()
-{
-    const wxString resDir = mmex::GetResourceDir().GetPathWithSep();
-    const wxString tempDir = mmex::getTempFolder();
-    wxFileName::Mkdir(tempDir, 511, wxPATH_MKDIR_FULL);
-    wxArrayString filesArray;
-    wxDir::GetAllFiles(resDir, &filesArray);
-    for (const auto& sourceFile : filesArray)
-    {
-        const wxString repFile = tempDir + wxFileName(sourceFile).GetFullName();
-        if (::wxFileExists(sourceFile))
-        {
-            if (!::wxFileExists(repFile)
-                || wxFileName(sourceFile).GetModificationTime() > wxFileName(repFile).GetModificationTime())
-            {
-                if (!::wxCopyFile(sourceFile, repFile))
-                    wxLogError("Could not copy %s !", sourceFile);
-                else
-                    wxLogDebug("Coping file:\n %s \nto\n %s", sourceFile, repFile);
-            }
-        }
-    }
-}
-
-bool Model_Report::WindowsUpdateRegistry()
-{
-#if defined (__WXMSW__)
-    // https://msdn.microsoft.com/en-us/library/ee330730(v=vs.85).aspx
-    // https://kevinragsdale.net/windows-10-and-the-web-browser-control/
-    wxRegKey Key(wxRegKey::HKCU, "Software\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_BROWSER_EMULATION");
-    if (Key.Create(true) && Key.SetValue(wxFileName(wxStandardPaths::Get().GetExecutablePath()).GetFullName(), 11001))
-        return true;
-    else
-        return false;
-#else
-    return true;
-#endif
-}
-
-bool Model_Report::outputReportFile(const wxString& str, const wxString& name)
-{
-	bool ok = true;
-	wxFileOutputStream index_output(mmex::getReportFullFileName(name));
-	if (index_output.IsOk())
-	{
-		wxTextOutputStream index_file(index_output);
-		index_file << str;
-		index_output.Close();
-	}
-	else
-	{
-		ok = false;
-	}
-	return ok;
-}
-
-wxString Model_Report::get_html(const Data& r) 
-{ 
-    return get_html(&r); 
+    return 0;
 }
 
 Model_Report::Data* Model_Report::get(const wxString& name)
@@ -466,4 +415,3 @@ Model_Report::Data* Model_Report::get(const wxString& name)
     if (!items.empty()) report = this->get(items[0].id(), this->db_);
     return report;
 }
-

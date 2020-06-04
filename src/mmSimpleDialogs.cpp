@@ -78,11 +78,18 @@ mmSingleChoiceDialog::mmSingleChoiceDialog(wxWindow* parent, const wxString& mes
 mmDialogComboBoxAutocomplete::mmDialogComboBoxAutocomplete()
 {
 }
+
+const wxString mmDialogComboBoxAutocomplete::getText() const
+{
+    return cbText_->GetValue();
+};
+
 mmDialogComboBoxAutocomplete::mmDialogComboBoxAutocomplete(wxWindow *parent, const wxString& message, const wxString& caption,
     const wxString& defaultText, const wxArrayString& choices)
     : Default(defaultText),
     Choices(choices),
-    Message(message)
+    Message(message),
+    cbText_(nullptr)
 {
     long style = wxCAPTION | wxRESIZE_BORDER | wxCLOSE_BOX;
     Create(parent, wxID_STATIC, caption, wxDefaultPosition, wxDefaultSize, style);
@@ -149,17 +156,28 @@ mmDateYearMonth::mmDateYearMonth(wxWindow *parent) :
 
 bool mmDateYearMonth::Create(wxWindow* parent, wxWindowID id)
 {
+    int y =
+#ifdef __WXGTK__
+        48;
+#else
+        24;
+#endif
     wxWindow::Create(parent, id);
 
     wxBoxSizer* box_sizer = new wxBoxSizer(wxHORIZONTAL);
     wxButton* button12Left = new wxButton(this, wxID_BACKWARD, "<<");
-    button12Left->SetMinSize(wxSize(24, -1));
+    button12Left->SetMinSize(wxSize(y, -1));
     wxButton* buttonLeft = new wxButton(this, wxID_DOWN, "<");
-    buttonLeft->SetMinSize(wxSize(24, -1));
+    buttonLeft->SetMinSize(wxSize(y, -1));
     wxButton* buttonRight = new wxButton(this, wxID_UP, ">");
-    buttonRight->SetMinSize(wxSize(24, -1));
+    buttonRight->SetMinSize(wxSize(y, -1));
     wxButton* button12Right = new wxButton(this, wxID_FORWARD, ">>");
-    button12Right->SetMinSize(wxSize(24, -1));
+    button12Right->SetMinSize(wxSize(y, -1));
+
+    button12Left->SetToolTip(_("Subtract one year"));
+    buttonLeft->SetToolTip(_("Subtract one month"));
+    buttonRight->SetToolTip(_("Add one month"));
+    button12Right->SetToolTip(_("Add one year"));
 
     box_sizer->Add(button12Left);
     box_sizer->Add(buttonLeft);
@@ -226,9 +244,8 @@ void mmErrorDialogs::InvalidCategory(wxWindow *win, bool simple)
         ? _("Please use this button for category selection.")
         : _("Please use this button for category selection\n"
             "or use the 'Split' checkbox for multiple categories.");
-    wxRichToolTip tip(_("Invalid Category"), msg + "\n");
-    tip.SetIcon(wxICON_WARNING);
-    tip.ShowFor(win);
+
+    ToolTip4Object(win, msg + "\n", _("Invalid Category"));
 }
 
 void mmErrorDialogs::InvalidFile(wxWindow *object, bool open)
@@ -236,9 +253,7 @@ void mmErrorDialogs::InvalidFile(wxWindow *object, bool open)
     const wxString errorHeader = open ? _("Unable to open file.") : _("File name is empty.");
     const wxString errorMessage = _("Please select the file for this operation.");
 
-    wxRichToolTip tip(errorHeader, errorMessage);
-    tip.SetIcon(wxICON_WARNING);
-    tip.ShowFor(object);
+    ToolTip4Object(object, errorMessage, errorHeader);
 }
 
 void mmErrorDialogs::InvalidAccount(wxWindow *object, bool transfer, TOOL_TIP tm)
@@ -257,9 +272,7 @@ void mmErrorDialogs::InvalidAccount(wxWindow *object, bool transfer, TOOL_TIP tm
     }
     errorMessage = errorMessage + "\n\n" + errorTips + "\n";
 
-    wxRichToolTip tip(errorHeader, errorMessage);
-    tip.SetIcon(wxICON_WARNING);
-    tip.ShowFor(object);
+    ToolTip4Object(object, errorMessage, errorHeader);
 }
 
 void mmErrorDialogs::InvalidPayee(wxWindow *object)
@@ -268,9 +281,7 @@ void mmErrorDialogs::InvalidPayee(wxWindow *object)
     const wxString& errorMessage = _("Please type in a new payee,\n"
             "or make a selection using the dropdown button.")
         + "\n";
-    wxRichToolTip tip(errorHeader, errorMessage);
-    tip.SetIcon(wxICON_WARNING);
-    tip.ShowFor(object);
+    ToolTip4Object(object, errorMessage, errorHeader);
 }
 
 void mmErrorDialogs::InvalidName(wxTextCtrl *textBox, bool alreadyexist)
@@ -282,9 +293,7 @@ void mmErrorDialogs::InvalidName(wxTextCtrl *textBox, bool alreadyexist)
     else
         errorMessage = _("Please type in a non empty name.");
 
-    wxRichToolTip tip(errorHeader, errorMessage);
-    tip.SetIcon(wxICON_WARNING);
-    tip.ShowFor(textBox);
+    ToolTip4Object(textBox, errorMessage, errorHeader);
 }
 
 void mmErrorDialogs::InvalidSymbol(wxTextCtrl *textBox, bool alreadyexist)
@@ -295,15 +304,14 @@ void mmErrorDialogs::InvalidSymbol(wxTextCtrl *textBox, bool alreadyexist)
         errorMessage = _("Already exist!");
     else
         errorMessage = _("Please type in a non empty symbol.");
-
-    wxRichToolTip tip(errorHeader, errorMessage);
-    tip.SetIcon(wxICON_WARNING);
-    tip.ShowFor(textBox);
+ 
+    ToolTip4Object(textBox, errorMessage, errorHeader);
 }
 
 void mmErrorDialogs::ToolTip4Object(wxWindow *object, const wxString &message, const wxString &title, int ico)
 {
     wxRichToolTip tip(title, message);
     tip.SetIcon(ico);
+    tip.SetBackgroundColour(object->GetParent()->GetBackgroundColour());
     tip.ShowFor(object);
 }

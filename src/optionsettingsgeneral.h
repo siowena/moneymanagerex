@@ -39,7 +39,7 @@ public:
     ~OptionSettingsGeneral();
 
 public:
-    virtual void SaveSettings();
+    virtual bool SaveSettings();
 
 private:
     void Create();
@@ -51,11 +51,14 @@ private:
 
 private:
     mmGUIApp* m_app;
+    wxStaticBoxSizer* m_currencyStaticBoxSizer;
+
     wxChoice* m_date_format_choice;
     wxChoice* m_month_selection;
     wxStaticText* m_sample_date_text;
 
     int m_currency_id;
+    wxCheckBox* m_currency_history;
     wxString m_date_format;
 
     wxCheckBox* m_use_org_date_copy_paste;

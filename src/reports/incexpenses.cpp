@@ -32,15 +32,11 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 mmReportIncomeExpenses::mmReportIncomeExpenses()
     : mmPrintableBase(_("Income vs Expenses"))
 {
+    setReportParameters(Reports::IncomevsExpensesSummary);
 }
 
 mmReportIncomeExpenses::~mmReportIncomeExpenses()
 {
-}
-
-int mmReportIncomeExpenses::report_parameters()
-{
-    return RepParams::DATE_RANGE | RepParams::ACCOUNTS_LIST;
 }
 
 wxString mmReportIncomeExpenses::getHTMLText()
@@ -92,7 +88,7 @@ wxString mmReportIncomeExpenses::getHTMLText()
     valueList.push_back(vt);
 
     wxArrayString labels;
-    const auto label = wxGetTranslation(m_date_range->title());
+    const auto label = m_date_range->local_title();
     labels.Add(label);
 
     hb.addDivRow();
@@ -104,7 +100,7 @@ wxString mmReportIncomeExpenses::getHTMLText()
             hb.startTableCell(" style='vertical-align:middle' width='70%'");
             hb.addDivCol17_67();
             if (!valueList.empty())
-                hb.addBarChart(labels, valueList, "BarChart");
+                hb.addBarChart(labels, valueList, "BarChart", 640, 480);
             hb.endDiv();
             hb.endTableCell();
 
@@ -144,15 +140,11 @@ wxString mmReportIncomeExpenses::getHTMLText()
 mmReportIncomeExpensesMonthly::mmReportIncomeExpensesMonthly()
     : mmPrintableBase(_("Income vs Expenses"))
 {
+    setReportParameters(Reports::IncomevsExpensesMonthly);
 }
 
 mmReportIncomeExpensesMonthly::~mmReportIncomeExpensesMonthly()
 {
-}
-
-int mmReportIncomeExpensesMonthly::report_parameters()
-{
-    return RepParams::DATE_RANGE | RepParams::ACCOUNTS_LIST | RepParams::CHART;
 }
 
 wxString mmReportIncomeExpensesMonthly::getHTMLText()
@@ -160,8 +152,8 @@ wxString mmReportIncomeExpensesMonthly::getHTMLText()
 
     wxString headerMsg = getAccountNames();
 
-    struct data_holder { wxString name; double period[2]; double overall; } line;
-    std::vector<data_holder> data;
+    struct html_data_holder { wxString name; double period[2]; } line;
+    std::vector<html_data_holder> data;
 
     std::map<int, std::pair<double, double> > incomeExpensesStats;
     //TODO: init all the map values with 0.0
@@ -221,8 +213,9 @@ wxString mmReportIncomeExpensesMonthly::getHTMLText()
     if (getChartSelection() == 0)
     {
         std::vector<BarGraphData> aData;
-        BarGraphData data_negative;
         BarGraphData data_positive;
+        BarGraphData data_negative;
+
         for (int i = 0; i < m; i++)
         {
             double val_negative = 0;
@@ -232,21 +225,22 @@ wxString mmReportIncomeExpensesMonthly::getHTMLText()
 
             for (const auto& item : data) {
                 if (item.name == wxString::Format("%i", idx)) {
-                    val_negative = item.period[0];
-                    val_positive = item.period[1];
+                    val_positive = item.period[0];
+                    val_negative = item.period[1];
                     break;
                 }
             }
 
-            data_negative.data.push_back(val_negative);
             data_positive.data.push_back(val_positive);
+            data_negative.data.push_back(val_negative);
 
-            data_negative.title = _("Expenses");
             data_positive.title = _("Income");
+            data_negative.title = _("Expenses");
 
             data_negative.fillColor = "rgba(220,66,66,0.5)";
             data_positive.fillColor = "rgba(151,187,205,0.5)";
-            const auto label = wxString::Format("%s %i", wxGetTranslation(wxDateTime::GetEnglishMonthName(d.GetMonth())), d.GetYear());
+            const auto label = wxString::Format("%s %i", wxGetTranslation(
+                wxDateTime::GetEnglishMonthName(d.GetMonth())), d.GetYear());
             labels.Add(label);
         }
         aData.push_back(data_positive);
@@ -256,7 +250,7 @@ wxString mmReportIncomeExpensesMonthly::getHTMLText()
         {
             hb.addDivRow();
             hb.addDivCol17_67();
-            hb.addBarChart(labels, aData, "BarChart", 1000, 400);
+            hb.addBarChart(labels, aData, "BarChart", 640, 480);
             hb.endDiv();
             hb.endDiv();
         }

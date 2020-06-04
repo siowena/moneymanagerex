@@ -46,9 +46,8 @@ class mmCategDialog : public wxDialog
 public:
     mmCategDialog();
     mmCategDialog(wxWindow* parent
-        , int category_id = -1, int subcategory_id = -1
-        , bool bEnableRelocate = true
-        , bool bEnableSelect = true);
+        , bool bIsSelection
+        , int category_id, int subcategory_id);
 
     bool Create(wxWindow* parent
         , wxWindowID id
@@ -101,11 +100,10 @@ private:
     wxBitmapButton* m_buttonRelocate;
     wxCheckBox* m_cbExpand;
     wxCheckBox* m_cbShowAll;
-    wxTreeItemId selectedItemId_;
+    wxTreeItemId m_selectedItemId;
     wxTreeItemId root_;
     wxTreeItemId getTreeItemFor(const wxTreeItemId& itemID, const wxString& itemText);
-    bool m_enable_select;
-    bool m_enable_relocate;
+    bool m_IsSelection;
     int m_categ_id;
     int m_subcateg_id;
     int m_init_selected_categ_id;

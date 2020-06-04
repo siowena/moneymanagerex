@@ -43,9 +43,9 @@ namespace tags
 <html><head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <title>%s - Report</title>
-<link href = 'master.css' rel = 'stylesheet' />
-<script src = 'ChartNew.js'></script>
-<script src = 'sorttable.js'></script>
+<link href = 'memory:master.css' rel = 'stylesheet' />
+<script src = 'memory:ChartNew.js'></script>
+<script src = 'memory:sorttable.js'></script>
 <style>
     /* Sortable tables */
     table.sortable thead {cursor: default;}
@@ -77,7 +77,7 @@ namespace tags
     static const wxString TABLE_CELL = "    <td%s>";
     static const wxString MONEY_CELL = "    <td class='money'>";
     static const wxString TABLE_CELL_END = "</td>\n";
-    static const wxString TABLE_CELL_LINK = "<a href=\"%s\">%s</a>\n";
+    static const wxString TABLE_CELL_LINK = R"(<a href="%s" target="_blank">%s</a>)";
     static const wxString TABLE_HEADER = "<th%s>";
     static const wxString HEADER = "<h%i>%s</h%i>";
     static const wxString TABLE_HEADER_END = "</th>\n";
@@ -121,7 +121,7 @@ void mmHTMLBuilder::init()
 {
     html_ = wxString::Format(wxString::FromUTF8(tags::HTML)
         , mmex::getProgramName()
-        , wxString::Format("%d", Option::instance().HtmlFontSize())
+        , wxString::Format("%d", Option::instance().getHtmlFontSize())
     );
 
     //Show user name if provided
@@ -501,10 +501,10 @@ void mmHTMLBuilder::addPieChart(std::vector<ValueTrio>& valueList, const wxStrin
         objValue.SetObject();
 
         Value title, color;
-        title.SetString(label.c_str(), allocator);
+        title.SetString(label.utf8_str(), allocator);
         objValue.AddMember("title", title, allocator);
 
-        color.SetString(entry.color.c_str(), allocator);
+        color.SetString(entry.color.utf8_str(), allocator);
         objValue.AddMember("color", color, allocator);
 
         double v = (floor(fabs(entry.amount) * round) / round);
@@ -558,7 +558,7 @@ void mmHTMLBuilder::addBarChart(const wxArrayString& labels
     for (const auto& entry : labels)
     {
         Value label_str;
-        label_str.SetString(entry.c_str(), allocator);
+        label_str.SetString(entry.utf8_str(), allocator);
         labelsArray.PushBack(label_str, allocator);
     }
     dataObjValue.AddMember("labels", labelsArray, allocator);
@@ -572,13 +572,13 @@ void mmHTMLBuilder::addBarChart(const wxArrayString& labels
         objValue.SetObject();
 
         Value title, color;
-        title.SetString(entry.title.c_str(), allocator);
+        title.SetString(entry.title.utf8_str(), allocator);
         objValue.AddMember("title", title, allocator);
 
-        color.SetString(entry.fillColor.c_str(), allocator);
+        color.SetString(entry.fillColor.utf8_str(), allocator);
         objValue.AddMember("fillColor", color, allocator);
 
-        color.SetString(entry.strokeColor.c_str(), allocator);
+        color.SetString(entry.strokeColor.utf8_str(), allocator);
         objValue.AddMember("strokeColor", color, allocator);
 
         Value data_array(kArrayType);
@@ -611,6 +611,7 @@ void mmHTMLBuilder::addBarChart(const wxArrayString& labels
 
     Value optionsValue;
     optionsValue.SetObject();
+
     optionsValue.AddMember("responsive", true, allocator);
     optionsValue.AddMember("scaleOverride", true, allocator);
     optionsValue.AddMember("annotateDisplay", true, allocator);
@@ -660,10 +661,10 @@ var reportChart = new Chart(ctx).Line(d.data, d.options);
     for (const auto& entry : data)
     {
         Value label_str, xPos;
-        label_str.SetString(entry.label.c_str(), allocator);
+        label_str.SetString(entry.label.utf8_str(), allocator);
         labelsArray.PushBack(label_str, allocator);
 
-        xPos.SetString(entry.xPos.c_str(), allocator);
+        xPos.SetString(entry.xPos.utf8_str(), allocator);
         xPosArray.PushBack(xPos, allocator);
 
         double v = (floor((entry.amount) * round) / round);
@@ -677,10 +678,10 @@ var reportChart = new Chart(ctx).Line(d.data, d.options);
 
     const auto c = getColor(colorNum);
     Value fillColor, strokeColor, pointColor, pointStrokeColor;
-    fillColor.SetString(c.c_str(), allocator);
-    strokeColor.SetString(c.c_str(), allocator);
-    pointColor.SetString(c.c_str(), allocator);
-    fillColor.SetString(c.c_str(), allocator);
+    fillColor.SetString(c.utf8_str(), allocator);
+    strokeColor.SetString(c.utf8_str(), allocator);
+    pointColor.SetString(c.utf8_str(), allocator);
+    fillColor.SetString(c.utf8_str(), allocator);
     datasetsValue.AddMember("fillColor", fillColor, allocator);
     datasetsValue.AddMember("strokeColor", strokeColor, allocator);
     datasetsValue.AddMember("pointColor", pointColor, allocator);

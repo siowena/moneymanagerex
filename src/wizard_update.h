@@ -17,37 +17,34 @@
  ********************************************************/
 #pragma once
 
-#include <wx/wizard.h>
-#include <wx/frame.h>
 #include "rapidjson/document.h"
 #include "option.h"
+#include <wx/webview.h>
+#include <wx/wizard.h>
+#include <wx/frame.h>
 
 using namespace rapidjson;
 
 class mmUpdate
 {
 public:
-    static void checkUpdates(bool bSilent, wxFrame *frame);
-
+    static void checkUpdates(wxFrame *frame, bool bSilent);
 };
 
-class mmUpdateWizard : public wxWizard
+class mmUpdateWizard : public wxDialog
 {
 public:
-    mmUpdateWizard(wxFrame *frame, const Document& json_releases, wxArrayInt new_releases);
-    void RunIt(bool modal);
+    mmUpdateWizard(wxWindow* parent, const Document& json_releases, wxArrayInt new_releases, const wxString& top_version);
+
+    ~mmUpdateWizard();
 
 private:
-    wxWizardPageSimple* page1;
-    void LinkClicked(wxHtmlLinkEvent& WXUNUSED(event));
-    void setControlEnable(int id);
+
+    void CreateControls(const Document& json_releases, wxArrayInt new_releases);
+    wxString top_version_;
+    wxCheckBox* showUpdateCheckBox_;
+    void OnNewWindow(wxWebViewEvent& evt);
 
     wxDECLARE_EVENT_TABLE();
 };
 //----------------------------------------------------------------------------
-
-inline void mmUpdateWizard::setControlEnable(int id)
-{
-    wxWindow *win = wxWindow::FindWindowById(id);
-    if (win) win->Hide();
-}

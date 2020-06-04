@@ -25,6 +25,8 @@
 
 #include "util.h"
 #include "constants.h"
+#include "platfdep.h"
+#include "paths.h"
 #include "validators.h"
 #include "model/Model_Currency.h"
 #include "model/Model_Infotable.h"
@@ -34,27 +36,72 @@
 #include <wx/xml/xml.h>
 #include <map>
 #include <lua.hpp>
+#include <wx/fs_mem.h>
 
 
 using namespace rapidjson;
 
 wxString JSON_PrettyFormated(rapidjson::Document& j_doc)
 {
-	StringBuffer j_buffer;
-	PrettyWriter<StringBuffer> j_writer(j_buffer);
-	j_doc.Accept(j_writer);
+    StringBuffer j_buffer;
+    PrettyWriter<StringBuffer> j_writer(j_buffer);
+    j_doc.Accept(j_writer);
 
-	return j_buffer.GetString();
+    return j_buffer.GetString();
 }
 
 wxString JSON_Formated(rapidjson::Document& j_doc)
 {
-	StringBuffer j_buffer;
-	Writer<StringBuffer> j_writer(j_buffer);
-	j_doc.Accept(j_writer);
+    StringBuffer j_buffer;
+    Writer<StringBuffer> j_writer(j_buffer);
+    j_doc.Accept(j_writer);
 
-	return j_buffer.GetString();
+    return j_buffer.GetString();
 }
+
+//----------------------------------------------------------------------------
+
+mmTreeItemData::mmTreeItemData(int id, bool isBudget, bool isReadOnly)
+    : id_(id)
+    , isString_(false)
+    , isBudgetingNode_(isBudget)
+    , isReadOnly_(isReadOnly)
+    , report_(nullptr)
+{
+    if (isBudget)
+        stringData_ = (wxString::Format("item@Budget_%i", id));
+    else
+        stringData_ = (wxString::Format("%i", id));
+}
+mmTreeItemData::mmTreeItemData(const wxString& string, mmPrintableBase* report)
+    : id_(0)
+    , isString_(true)
+    , isBudgetingNode_(false)
+    , isReadOnly_(false)
+    , stringData_("report@" + string)
+    , report_(report)
+{
+    const wxString& n = wxString::Format("REPORT_%d", report_->getReportId());
+    const wxString& settings = Model_Infotable::instance().GetStringInfo(n, "");
+    report_->initReportSettings(settings);
+}
+
+mmTreeItemData::mmTreeItemData(mmPrintableBase* report)
+    : id_(0)
+    , isString_(true)
+    , isBudgetingNode_(false)
+    , isReadOnly_(false)
+    , stringData_("report@" + report->getReportTitle())
+    , report_(report)
+{}
+mmTreeItemData::mmTreeItemData(const wxString& string, bool isReadOnly)
+    : id_(0)
+    , isString_(true)
+    , isBudgetingNode_(false)
+    , isReadOnly_(isReadOnly)
+    , stringData_("item@" + string)
+    , report_(nullptr)
+{}
 
 //----------------------------------------------------------------------------
 
@@ -75,12 +122,12 @@ const wxString inQuotes(const wxString& l, const wxString& delimiter)
     wxString label = l;
     if (label.Contains(delimiter) || label.Contains("\""))
     {
-        label.Replace("\"","\"\"", true);
+        label.Replace("\"", "\"\"", true);
         label = wxString() << "\"" << label << "\"";
     }
 
-    label.Replace("\t","    ", true);
-    label.Replace("\n"," ", true);
+    label.Replace("\t", "    ", true);
+    label.Replace("\n", " ", true);
     return label;
 }
 
@@ -111,6 +158,21 @@ wxColour mmColors::userDefColor4;
 wxColour mmColors::userDefColor5;
 wxColour mmColors::userDefColor6;
 wxColour mmColors::userDefColor7;
+
+wxColour getUDColour(int c)
+{
+    switch (c)
+    {
+    case 1: return  mmColors::userDefColor1;
+    case 2: return  mmColors::userDefColor2;
+    case 3: return  mmColors::userDefColor3;
+    case 4: return  mmColors::userDefColor4;
+    case 5: return  mmColors::userDefColor5;
+    case 6: return  mmColors::userDefColor6;
+    case 7: return  mmColors::userDefColor7;
+    }
+    return wxNullColour;
+}
 
 //*-------------------------------------------------------------------------*//
 
@@ -251,7 +313,7 @@ const wxString mmGetDateForDisplay(const wxString &iso_date)
 
     // Format date, store it and return it.
     wxString date_str = dateFormat;
-    if (date_str.Replace("%Y", iso_date.Mid(0, 4))==0)
+    if (date_str.Replace("%Y", iso_date.Mid(0, 4)) == 0)
         date_str.Replace("%y", iso_date.Mid(2, 2));
     date_str.Replace("%m", iso_date.Mid(5, 2));
     date_str.Replace("%d", iso_date.Mid(8, 2));
@@ -317,7 +379,7 @@ const wxDateTime getUserDefinedFinancialYear(bool prevDayRequired)
 
     if (dayNum <= 0 || dayNum > wxDateTime::GetNumberOfDays(static_cast<wxDateTime::Month>(monthNum), year))
         dayNum = 1;
-    
+
     wxDateTime financialYear(dayNum, static_cast<wxDateTime::Month>(monthNum), year);
     if (prevDayRequired)
         financialYear.Subtract(wxDateSpan::Day());
@@ -356,47 +418,47 @@ const std::map<wxString, wxString> &date_formats_regex()
 
 const std::map<wxString, wxString> g_date_formats_map()
 {
-	static std::map<wxString, wxString> df;
-	if (!df.empty())
-		return df;
+    static std::map<wxString, wxString> df;
+    if (!df.empty())
+        return df;
 
-	const auto local_date_fmt = wxLocale::GetInfo(wxLOCALE_SHORT_DATE_FMT);
-	const wxString formats[] = {
-		local_date_fmt,
-		"%Y-%m-%d", "%d/%m/%y", "%d/%m/%Y",
-		"%d-%m-%y", "%d-%m-%Y", "%d.%m.%y",
-		"%d.%m.%Y", "%d,%m,%y", "%d/%m'%Y",
-		"%d/%m'%y", "%d/%m %Y", "%m/%d/%y",
-		"%m/%d/%Y", "%m-%d-%y", "%m-%d-%Y",
-		"%m/%d'%y", "%m/%d'%Y", "%y/%m/%d",
-		"%y-%m-%d", "%Y/%m/%d", "%Y.%m.%d",
-		"%Y %m %d", "%Y%m%d",   "%Y%d%m"
-	};
+    const auto local_date_fmt = wxLocale::GetInfo(wxLOCALE_SHORT_DATE_FMT);
+    const wxString formats[] = {
+        local_date_fmt,
+        "%Y-%m-%d", "%d/%m/%y", "%d/%m/%Y",
+        "%d-%m-%y", "%d-%m-%Y", "%d.%m.%y",
+        "%d.%m.%Y", "%d,%m,%y", "%d/%m'%Y",
+        "%d/%m'%y", "%d/%m %Y", "%m/%d/%y",
+        "%m/%d/%Y", "%m-%d-%y", "%m-%d-%Y",
+        "%m/%d'%y", "%m/%d'%Y", "%y/%m/%d",
+        "%y-%m-%d", "%Y/%m/%d", "%Y.%m.%d",
+        "%Y %m %d", "%Y%m%d",   "%Y%d%m"
+    };
 
-	for (const auto& entry : formats)
-	{
-		auto local_date_mask = entry;
-		local_date_mask.Replace("%Y", "YYYY");
-		local_date_mask.Replace("%y", "YY");
-		local_date_mask.Replace("%d", "DD");
-		local_date_mask.Replace("%m", "MM");
-		df[entry] = local_date_mask;
-	}
+    for (const auto& entry : formats)
+    {
+        auto local_date_mask = entry;
+        local_date_mask.Replace("%Y", "YYYY");
+        local_date_mask.Replace("%y", "YY");
+        local_date_mask.Replace("%d", "DD");
+        local_date_mask.Replace("%m", "MM");
+        df[entry] = local_date_mask;
+    }
 
-	return df;
+    return df;
 }
 
 const std::map<int, std::pair<wxConvAuto, wxString> > g_encoding = {
     { 0, { wxConvAuto(wxFONTENCODING_SYSTEM), wxTRANSLATE("Default") } }
-    , { 1, { wxConvAuto(wxFONTENCODING_UTF8), wxTRANSLATE("UTF-8") } }
-    , { 2, { wxConvAuto(wxFONTENCODING_CP1250), wxTRANSLATE("1250") } }
-    , { 3, { wxConvAuto(wxFONTENCODING_CP1251), wxTRANSLATE("1251") } }
-    , { 4, { wxConvAuto(wxFONTENCODING_CP1252), wxTRANSLATE("1252") } }
-    , { 5, { wxConvAuto(wxFONTENCODING_CP1253), wxTRANSLATE("1253") } }
-    , { 6, { wxConvAuto(wxFONTENCODING_CP1254), wxTRANSLATE("1254") } }
-    , { 7, { wxConvAuto(wxFONTENCODING_CP1255), wxTRANSLATE("1255") } }
-    , { 8, { wxConvAuto(wxFONTENCODING_CP1256), wxTRANSLATE("1256") } }
-    , { 9, { wxConvAuto(wxFONTENCODING_CP1257), wxTRANSLATE("1257") } }
+    , { 1, { wxConvAuto(wxFONTENCODING_UTF8), "UTF-8" } }
+    , { 2, { wxConvAuto(wxFONTENCODING_CP1250), "1250" } }
+    , { 3, { wxConvAuto(wxFONTENCODING_CP1251), "1251" } }
+    , { 4, { wxConvAuto(wxFONTENCODING_CP1252), "1252" } }
+    , { 5, { wxConvAuto(wxFONTENCODING_CP1253), "1253" } }
+    , { 6, { wxConvAuto(wxFONTENCODING_CP1254), "1254" } }
+    , { 7, { wxConvAuto(wxFONTENCODING_CP1255), "1255" } }
+    , { 8, { wxConvAuto(wxFONTENCODING_CP1256), "1256" } }
+    , { 9, { wxConvAuto(wxFONTENCODING_CP1257), "1257" } }
 };
 
 static const wxString MONTHS_SHORT[12] =
@@ -418,15 +480,6 @@ static const wxString gDaysInWeek[7] =
 const wxString mmPlatformType()
 {
     return wxPlatformInfo::Get().GetOperatingSystemFamilyName().substr(0, 3);
-}
-
-const wxString getURL(const wxString& file)
-{
-    wxString index = file;
-#ifdef __WXGTK__
-    index.Prepend("file://");
-#endif
-    return index;
 }
 
 void windowsFreezeThaw(wxWindow* w)
@@ -511,25 +564,29 @@ bool getOnlineCurrencyRates(wxString& msg, int curr_id, bool used_only)
         msg = output;
     }
 
+    Model_Currency::instance().Savepoint();
     Model_CurrencyHistory::instance().Savepoint();
     for (auto& currency : currencies)
     {
         if (!used_only && !Model_Account::is_used(currency)) continue;
 
         const wxString currency_symbol = currency.CURRENCY_SYMBOL;
-        if (!currency_symbol.IsEmpty())
+        if (!currency_symbol.IsEmpty() && currency_data.find(currency_symbol) != currency_data.end())
         {
-            if (currency_data.find(currency_symbol) != currency_data.end())
+            double new_rate = currency_data[currency_symbol];
+            if (new_rate > 0)
             {
-                double new_rate = currency_data[currency_symbol];
-                if (new_rate > 0)
-                {
+                if(Option::instance().getCurrencyHistoryEnabled())
                     Model_CurrencyHistory::instance().addUpdate(currency.CURRENCYID, today, new_rate, Model_CurrencyHistory::ONLINE);
+                else
+                {
+                    currency.BASECONVRATE = new_rate;
+                    Model_Currency::instance().save(&currency);
                 }
             }
         }
     }
-
+    Model_Currency::instance().ReleaseSavepoint();
     Model_CurrencyHistory::instance().ReleaseSavepoint();
 
     return true;
@@ -546,14 +603,17 @@ bool get_yahoo_prices(std::map<wxString, double>& symbols
     wxString buffer;
     for (const auto& entry : symbols)
     {
-        if (type == yahoo_price_type::FIAT)
-        {
+        if (type == yahoo_price_type::FIAT) {
             buffer += wxString::Format("%s%s=X,", entry.first, base_currency_symbol);
         }
-        else
+        else {
             buffer += entry.first + ",";
+        }
     }
-    if (buffer.Right(1).Contains(",")) buffer.RemoveLast(1);
+
+    if (buffer.Right(1).Contains(",")) {
+        buffer.RemoveLast(1);
+    }
 
     const auto URL = wxString::Format(mmex::weblink::YahooQuotes, buffer);
 
@@ -566,7 +626,7 @@ bool get_yahoo_prices(std::map<wxString, double>& symbols
     }
 
     Document json_doc;
-    if (json_doc.Parse(json_data.c_str()).HasParseError())
+    if (json_doc.Parse(json_data.utf8_str()).HasParseError())
         return false;
 
 
@@ -782,7 +842,7 @@ CURLcode http_post_data(const wxString& sSite, const wxString& sData, const wxSt
     struct curlBuff chunk;
     curl_set_writedata_options(curl, chunk);
 
-    struct curl_slist *headers = NULL;
+    struct curl_slist* headers = nullptr;
     headers = curl_slist_append(headers, sContentType.mb_str());
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
@@ -799,6 +859,7 @@ CURLcode http_post_data(const wxString& sSite, const wxString& sData, const wxSt
 
     free(chunk.memory);
     curl_easy_cleanup(curl);
+    curl_slist_free_all(headers);
     return err_code;
 }
 
@@ -837,97 +898,97 @@ CURLcode http_download_file(const wxString& sSite, const wxString& sPath)
 //All components version in TXT, HTML, ABOUT
 const wxString getProgramDescription(int type)
 {
-	const wxString bull = L" \u2022 ";
+    const wxString bull = L" \u2022 ";
     wxString eol;
     bool simple = true;
     switch (type) {
-        case 0: eol = "\n"; break;
-        case 1: eol = "<br>\n"; break;
-        case 2: eol = "\n"; simple = false;  break;
+    case 0: eol = "\n"; break;
+    case 1: eol = "<br>\n"; break;
+    case 2: eol = "\n"; simple = false;  break;
     }
 
-	wxString description;
+    wxString description;
 
-	description << wxString::Format(simple ? "Version: %s" : _("Version: %s"), mmex::getTitleProgramVersion()) << eol
-		<< bull << (simple ? "db " : _("Database version: ")) << mmex::version::getDbLatestVersion()
+    description << wxString::Format(simple ? "Version: %s" : _("Version: %s"), mmex::getTitleProgramVersion()) << eol
+        << bull << (simple ? "db " : _("Database version: ")) << mmex::version::getDbLatestVersion()
 #if WXSQLITE3_HAVE_CODEC
-		<< bull << " (" << wxSQLite3Cipher::GetCipherName(wxSQLite3Cipher::GetGlobalCipherDefault()) << ")"
+        << bull << " (" << wxSQLite3Cipher::GetCipherName(wxSQLite3Cipher::GetGlobalCipherDefault()) << ")"
 #endif
-		<< eol
+        << eol
 
 #ifdef GIT_COMMIT_HASH
-		<< bull << (simple ? "git " : _("Git commit: ")) << GIT_COMMIT_HASH
-		<< " (" << GIT_COMMIT_DATE << ")"
+        << bull << (simple ? "git " : _("Git commit: ")) << GIT_COMMIT_HASH
+        << " (" << GIT_COMMIT_DATE << ")"
 #endif
 #ifdef GIT_BRANCH
-		<< bull << (simple ? "" : _("Git branch: ")) << GIT_BRANCH
+        << bull << (simple ? "" : _("Git branch: ")) << GIT_BRANCH
 #endif
-		<< eol << eol
+        << eol << eol
 
-		<< (simple ? "Libs:" : _("MMEX is using the following support products:")) << eol
-		<< bull + wxVERSION_STRING
-		<< wxString::Format(" (%s %d.%d)",
-			wxPlatformInfo::Get().GetPortIdName(),
-			wxPlatformInfo::Get().GetToolkitMajorVersion(),
-			wxPlatformInfo::Get().GetToolkitMinorVersion())
+        << (simple ? "Libs:" : _("MMEX is using the following support products:")) << eol
+        << bull + wxVERSION_STRING
+        << wxString::Format(" (%s %d.%d)",
+            wxPlatformInfo::Get().GetPortIdName(),
+            wxPlatformInfo::Get().GetToolkitMajorVersion(),
+            wxPlatformInfo::Get().GetToolkitMinorVersion())
         << eol
 
-		<< bull + wxSQLITE3_VERSION_STRING
-		<< " (SQLite " << wxSQLite3Database::GetVersion() << ")" 
+        << bull + wxSQLITE3_VERSION_STRING
+        << " (SQLite " << wxSQLite3Database::GetVersion() << ")"
         << eol
-		
+
         << bull + "RapidJSON " << RAPIDJSON_VERSION_STRING << eol
-		
+
         << bull + LUA_RELEASE << eol
-		
+
         << bull + curl_version() << eol << eol
 
-		<< (simple ? "Build:" : _("Build on")) << " " << __DATE__ << " " << __TIME__ << " "
-		<< (simple ? "" : _("with:")) << eol
-		
+        << (simple ? "Build:" : _("Build on")) << " " << __DATE__ << " " << __TIME__ << " "
+        << (simple ? "" : _("with:")) << eol
+
         << bull + CMAKE_VERSION << eol
-		<< bull + MAKE_VERSION << eol
-		<< bull + GETTEXT_VERSION << eol
+        << bull + MAKE_VERSION << eol
+        << bull + GETTEXT_VERSION << eol
 #if defined(_MSC_VER)
 #ifdef VS_VERSION
-		<< bull + (simple ? "MSVS" : "Microsoft Visual Studio ") + VS_VERSION << eol
+        << bull + (simple ? "MSVS" : "Microsoft Visual Studio ") + VS_VERSION << eol
 #endif
-		<< bull + (simple ? "MSVSC++" : "Microsoft Visual C++ ") + CXX_VERSION << eol
+        << bull + (simple ? "MSVSC++" : "Microsoft Visual C++ ") + CXX_VERSION << eol
 #elif defined(__clang__)
-		<< bull + "Clang " + __VERSION__ << "\n"
+        << bull + "Clang " + __VERSION__ << "\n"
 #elif (defined(__GNUC__) || defined(__GNUG__)) && !(defined(__clang__) || defined(__INTEL_COMPILER))
-		<< bull + "GCC " + __VERSION__
+        << bull + "GCC " + __VERSION__
 #endif
 #ifdef CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION
-		<< bull + CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION
+        << bull + CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION
 #endif
 #ifdef LINUX_DISTRO_STRING
-		<< bull + LINUX_DISTRO_STRING
+        << bull + LINUX_DISTRO_STRING
 #endif
-		<< eol << eol
-		<< (simple ? "OS:" : _("Running on:")) << eol
+        << eol << eol
+        << (simple ? "OS:" : _("Running on:")) << eol
 #ifdef __LINUX__
-		<< bull + wxGetLinuxDistributionInfo().Description
-		<< " \"" << wxGetLinuxDistributionInfo().CodeName << "\"\n"
+        << bull + wxGetLinuxDistributionInfo().Description
+        << " \"" << wxGetLinuxDistributionInfo().CodeName << "\"\n"
 #endif
-		<< bull + wxGetOsDescription() << eol
-		<< bull + wxPlatformInfo::Get().GetDesktopEnvironment()
-		<< " " << wxLocale::GetLanguageName(wxLocale::GetSystemLanguage())
-		<< " (" << wxLocale::GetSystemEncodingName() << ")" << eol
-		<< wxString::Format(bull + "%ix%i %ibit %ix%ippi\n",
-			wxGetDisplaySize().GetX(),
-			wxGetDisplaySize().GetY(),
-			wxDisplayDepth(),
-			wxGetDisplayPPI().GetX(),
-			wxGetDisplayPPI().GetY())
-		;
+        << bull + wxGetOsDescription() << eol
+        << bull + wxPlatformInfo::Get().GetDesktopEnvironment()
+        << " " << wxLocale::GetLanguageName(wxLocale::GetSystemLanguage())
+        << " (" << wxLocale::GetSystemEncodingName() << ")" << eol
+        << wxString::Format(bull + "%ix%i %ibit %ix%ippi\n",
+            wxGetDisplaySize().GetX(),
+            wxGetDisplaySize().GetY(),
+            wxDisplayDepth(),
+            wxGetDisplayPPI().GetX(),
+            wxGetDisplayPPI().GetY())
+        ;
 
-	description.RemoveLast();
-	if (simple) {
-		description.Replace("#", "&asymp;");
-	}
+    description.RemoveLast();
+    if (simple) {
+        description.Replace("#", "&asymp;");
+    }
 
-	return description;
+    return description;
 }
 
 // ----------------------------------------
@@ -1055,6 +1116,66 @@ bool mmSeparator::isStringHasSeparator(const wxString &string)
     return result;
 }
 
+const wxString getVFname4print(const wxString& name, const wxString& data)
+{
+#ifndef __WXGTK__
+
+    int fid = 0;
+    wxFileSystem fsys;
+    wxFSFile *f0 = fsys.OpenFile(wxString::Format("memory:%s0.htm", name));
+    if (f0) {
+        delete f0;
+        wxMemoryFSHandler::RemoveFile(wxString::Format("%s0.htm", name));
+        fid = 1;
+    }
+    wxFSFile *f1 = fsys.OpenFile(wxString::Format("memory:%s1.htm", name));
+    if (f1) {
+        delete f1;
+        wxMemoryFSHandler::RemoveFile(wxString::Format("%s1.htm", name));
+        fid = 0;
+    }
+
+    wxCharBuffer char_buffer;
+    char_buffer = data.ToUTF8();
+
+    wxMemoryFSHandler::AddFile(wxString::Format("%s%i.htm", name, fid), char_buffer, char_buffer.length());
+    return wxString::Format("memory:%s%i.htm", name, fid);
+
+#else
+    wxString txt = data;
+    txt.Replace("memory:", "");
+
+    const auto f = wxString::Format("%s%s%shtml", mmex::getTempFolder()
+        , name
+        , wxString(wxFILE_SEP_EXT));
+
+    wxFileOutputStream index_output(f);
+    if (index_output.IsOk())
+    {
+        wxTextOutputStream index_file(index_output);
+        index_file << txt;
+        index_output.Close();
+    }
+    return "file://" + f;
+
+#endif
+}
+
+void clearVFprintedFiles(const wxString& name)
+{
+    wxFileSystem fsys;
+    wxFSFile *f0 = fsys.OpenFile(wxString::Format("memory:%s0.htm", name));
+    if (f0) {
+        delete f0;
+        wxMemoryFSHandler::RemoveFile(wxString::Format("%s0.htm", name));
+    }
+    wxFSFile *f1 = fsys.OpenFile(wxString::Format("memory:%s1.htm", name));
+    if (f1) {
+        delete f1;
+        wxMemoryFSHandler::RemoveFile(wxString::Format("%s1.htm", name));
+    }
+}
+
 const wxString md2html(const wxString& md)
 {
     wxString body = md;
@@ -1063,9 +1184,9 @@ const wxString md2html(const wxString& md)
     // img with link
     // skip images hosted via unsupported https
     wxRegEx re(R"(\[!\[([^]]+)\]\(([ \t]*https:\/\/[^)]+)\)\]\(([^)]+)\))", wxRE_EXTENDED);
-    re.Replace(&body, R"(<a href="\3">\1</a>)");
+    re.Replace(&body, R"(<a href="\3" target="_blank">\1</a>)");
     re.Compile(R"(\[!\[([^]]+)\]\(([^)]+)\)\]\(([^)]+)\))", wxRE_EXTENDED);
-    re.Replace(&body, R"(<a href="\3"><img src="\2" alt="\1"></a>)");
+    re.Replace(&body, R"(<a href="\3" target="_blank"><img src="\2" alt="\1"></a>)");
 
     // img
     // skip images hosted via unsupported https
@@ -1076,13 +1197,13 @@ const wxString md2html(const wxString& md)
 
     // link
     re.Compile(R"(\[([^]]+)\]\(([^)]+)\))", wxRE_EXTENDED);
-    re.Replace(&body, R"(<a href="\2">\1</a>)");
+    re.Replace(&body, R"(<a href="\2" target="_blank">\1</a>)");
 
     // github issues #XXXX
     re.Compile(R"(#([0-9]{4,5}))", wxRE_EXTENDED);
-    re.Replace(&body, R"(<a href="https://github.com/moneymanagerex/moneymanagerex/issues/\1">#\1</a>)");
+    re.Replace(&body, R"(<a href="https://github.com/moneymanagerex/moneymanagerex/issues/\1" target="_blank">#\1</a>)");
 
     body.Replace("\n", "\n<p>");
-    
+
     return body;
 }

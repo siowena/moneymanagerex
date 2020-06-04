@@ -31,10 +31,10 @@ class wxIcon;
 namespace mmex
 {
 
-enum EDocFile { F_README = 0, F_CONTRIB, F_LICENSE, F_VERSION, HTML_INDEX, HTML_CUSTOM_SQL, HTML_INVESTMENT, HTML_BUDGET, DOC_FILES_MAX };
-wxString getPathDoc(const EDocFile& f);
+enum EDocFile { F_README = 0, F_CONTRIB, F_LICENSE, HTML_INDEX, HTML_WEBAPP, HTML_CUSTOM_SQL, HTML_INVESTMENT, HTML_BUDGET, DOC_FILES_MAX };
+wxString getPathDoc(EDocFile f, bool url = true);
 
-enum EResFile { PROGRAM_ICON = 0, TRANS_SOUND, HOME_PAGE_TEMPLATE, RES_FILES_MAX };
+enum EResFile { TRANS_SOUND = 0, HOME_PAGE_TEMPLATE, RES_FILES_MAX };
 wxString getPathResource(EResFile f);
 
 // use instead of getPathResource(PROGRAM_ICON)
@@ -48,9 +48,7 @@ const wxString getPathUser(EUserFile f);
 
 const wxString getPathAttachment(const wxString &AttachmentsFolder);
 bool isPortableMode();
-const wxString getReportIndex();
 const wxString getTempFolder();
-const wxString getReportFullFileName(const wxString& name);
 
 } // namespace mmex
 

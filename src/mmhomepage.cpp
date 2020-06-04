@@ -86,8 +86,9 @@ const wxString htmlWidgetStocks::getHTMLText()
             if (Model_Account::type(account) != Model_Account::INVESTMENT) continue;
             if (Model_Account::status(account) != Model_Account::OPEN) continue;
             body += "<tr>";
-            body += wxString::Format("<td sorttable_customkey='*%s*'><a href='stock:%i' oncontextmenu='return false;'>%s</a></td>\n"
-                , account.ACCOUNTNAME, account.ACCOUNTID, account.ACCOUNTNAME);
+            body += wxString::Format("<td sorttable_customkey='*%s*'><a href='stock:%i' oncontextmenu='return false;'>%s</a>%s</td>\n"
+                , account.ACCOUNTNAME, account.ACCOUNTID, account.ACCOUNTNAME,
+                account.WEBSITE.empty() ? "" : wxString::Format("&nbsp;&nbsp;&nbsp;&nbsp;(<a href='%s' oncontextmenu='return false;' target='_blank'>WWW</a>)", account.WEBSITE));
             body += wxString::Format("<td class='money' sorttable_customkey='%f'>%s</td>\n"
                 , stockStats[account.ACCOUNTID].first
                 , Model_Account::toCurrency(stockStats[account.ACCOUNTID].first, &account));
@@ -245,7 +246,7 @@ void htmlWidgetTop7Categories::getTopCategoryStats(
 
     std::stable_sort(categoryStats.begin(), categoryStats.end()
         , [](const std::pair<wxString, double> x, const std::pair<wxString, double> y)
-        { return x.second < y.second; }
+    { return x.second < y.second; }
     );
 
     int counter = 0;
@@ -331,7 +332,7 @@ const wxString htmlWidgetBillsAndDeposits::getHTMLText()
         static const wxString idStr = "BILLS_AND_DEPOSITS";
 
         output = "<table class='table'>\n<thead>\n<tr class='active'><th>";
-        output += wxString::Format("<a href=\"billsdeposits:\" oncontextmenu='return false;'>%s</a></th>\n<th></th>\n", title_);
+        output += wxString::Format("<a href=\"billsdeposits:\" oncontextmenu=\"return false;\" target=\"_blank\">%s</a></th>\n<th></th>\n", title_);
         output += wxString::Format("<th nowrap class='text-right sorttable_nosort'>%i <a id='%s_label' onclick=\"toggleTable('%s'); \" href='#%s' oncontextmenu='return false;'>[-]</a></th></tr>\n"
             , int(bd_days.size()), idStr, idStr, idStr);
         output += "</thead>\n";
@@ -358,17 +359,18 @@ const wxString htmlWidgetBillsAndDeposits::getHTMLText()
 //* Income vs Expenses *//
 const wxString htmlWidgetIncomeVsExpenses::getHTMLText()
 {
+    bool ignoreFuture = Option::instance().getIgnoreFutureTransactions();
     wxSharedPtr<mmDateRange> date_range;
-    if (Option::instance().getIgnoreFutureTransactions())
+    if (ignoreFuture)
         date_range = new mmCurrentMonthToDate;
     else
         date_range = new mmCurrentMonth;
 
+    wxLogDebug("%s - %s", date_range->start_date().FormatISODate(), date_range->end_date().FormatISODate());
+
     double tIncome = 0.0, tExpenses = 0.0;
     std::map<int, std::pair<double, double> > incomeExpensesStats;
 
-    //Initialization
-    bool ignoreFuture = Option::instance().getIgnoreFutureTransactions();
 
     //Calculations
     const auto &transactions = Model_Checking::instance().find(
@@ -380,11 +382,6 @@ const wxString htmlWidgetIncomeVsExpenses::getHTMLText()
 
     for (const auto& pBankTransaction : transactions)
     {
-        if (ignoreFuture)
-        {
-            if (Model_Checking::TRANSDATE(pBankTransaction).IsLaterThan(date_range->today()))
-                continue; //skip future dated transactions
-        }
 
         // Do not include asset or stock transfers in income expense calculations.
         if (Model_Checking::foreignTransactionAsTransfer(pBankTransaction))
@@ -419,29 +416,29 @@ const wxString htmlWidgetIncomeVsExpenses::getHTMLText()
     PrettyWriter<StringBuffer> json_writer(json_buffer);
     json_writer.StartObject();
     json_writer.Key("0");
-    json_writer.String(wxString::Format(_("Income vs Expenses: %s"), date_range.get()->local_title()).c_str());
+    json_writer.String(wxString::Format(_("Income vs Expenses: %s"), date_range.get()->local_title()).utf8_str());
     json_writer.Key("1");
-    json_writer.String(_("Type").c_str());
+    json_writer.String(_("Type").utf8_str());
     json_writer.Key("2");
-    json_writer.String(_("Amount").c_str());
+    json_writer.String(_("Amount").utf8_str());
     json_writer.Key("3");
-    json_writer.String(_("Income").c_str());
+    json_writer.String(_("Income").utf8_str());
     json_writer.Key("4");
-    json_writer.String(Model_Currency::toCurrency(tIncome).c_str());
+    json_writer.String(Model_Currency::toCurrency(tIncome).utf8_str());
     json_writer.Key("5");
-    json_writer.String(_("Expenses").c_str());
+    json_writer.String(_("Expenses").utf8_str());
     json_writer.Key("6");
-    json_writer.String(Model_Currency::toCurrency(tExpenses).c_str());
+    json_writer.String(Model_Currency::toCurrency(tExpenses).utf8_str());
     json_writer.Key("7");
-    json_writer.String(_("Difference:").c_str());
+    json_writer.String(_("Difference:").utf8_str());
     json_writer.Key("8");
-    json_writer.String(Model_Currency::toCurrency(tIncome - tExpenses).c_str());
+    json_writer.String(Model_Currency::toCurrency(tIncome - tExpenses).utf8_str());
     json_writer.Key("9");
-    json_writer.String(_("Income/Expenses").c_str());
+    json_writer.String(_("Income/Expenses").utf8_str());
     json_writer.Key("10");
-    json_writer.String(wxString::FromCDouble(tIncome, 2).c_str());
+    json_writer.String(wxString::FromCDouble(tIncome, 2).utf8_str());
     json_writer.Key("11");
-    json_writer.String(wxString::FromCDouble(tExpenses, 2).c_str());
+    json_writer.String(wxString::FromCDouble(tExpenses, 2).utf8_str());
     json_writer.Key("12");
     json_writer.Int(steps);
     json_writer.Key("13");
@@ -449,9 +446,9 @@ const wxString htmlWidgetIncomeVsExpenses::getHTMLText()
     json_writer.EndObject();
 
     wxLogDebug("======= mmHomePagePanel::getIncomeVsExpensesJSON =======");
-    wxLogDebug("RapidJson\n%s", json_buffer.GetString());
+    wxLogDebug("RapidJson\n%s", wxString::FromUTF8(json_buffer.GetString()));
 
-    return json_buffer.GetString();
+    return wxString::FromUTF8(json_buffer.GetString());
 }
 
 htmlWidgetIncomeVsExpenses::~htmlWidgetIncomeVsExpenses()
@@ -465,7 +462,7 @@ const wxString htmlWidgetStatistics::getHTMLText()
     json_writer.StartObject();
 
     json_writer.Key("NAME");
-    json_writer.String(_("Transaction Statistics").c_str());
+    json_writer.String(_("Transaction Statistics").utf8_str());
 
     wxSharedPtr<mmDateRange> date_range;
     if (Option::instance().getIgnoreFutureTransactions())
@@ -508,18 +505,18 @@ const wxString htmlWidgetStatistics::getHTMLText()
 
     if (countFollowUp > 0)
     {
-        json_writer.Key(_("Follow Up On Transactions: ").c_str());
+        json_writer.Key(_("Follow Up On Transactions: ").utf8_str());
         json_writer.Double(countFollowUp);
     }
 
-    json_writer.Key(_("Total Transactions: ").c_str());
+    json_writer.Key(_("Total Transactions: ").utf8_str());
     json_writer.Int(total_transactions);
     json_writer.EndObject();
 
     wxLogDebug("======= mmHomePagePanel::getStatWidget =======");
-    wxLogDebug("RapidJson\n%s", json_buffer.GetString());
+    wxLogDebug("RapidJson\n%s", wxString::FromUTF8(json_buffer.GetString()));
 
-    return json_buffer.GetString();
+    return wxString::FromUTF8(json_buffer.GetString());
 }
 
 htmlWidgetStatistics::~htmlWidgetStatistics()
@@ -534,15 +531,15 @@ const wxString htmlWidgetGrandTotals::getHTMLText(double& tBalance)
     PrettyWriter<StringBuffer> json_writer(json_buffer);
     json_writer.StartObject();
     json_writer.Key("NAME");
-    json_writer.String(_("Grand Total:").c_str());
+    json_writer.String(_("Grand Total:").utf8_str());
     json_writer.Key("VALUE");
-    json_writer.String(tBalanceStr.c_str());
+    json_writer.String(tBalanceStr.utf8_str());
     json_writer.EndObject();
 
     wxLogDebug("======= mmHomePagePanel::getGrandTotalsJSON =======");
-    wxLogDebug("RapidJson\n%s", json_buffer.GetString());
+    wxLogDebug("RapidJson\n%s", wxString::FromUTF8(json_buffer.GetString()));
 
-    return json_buffer.GetString();
+    return wxString::FromUTF8(json_buffer.GetString());
 }
 
 htmlWidgetGrandTotals::~htmlWidgetGrandTotals()
@@ -558,15 +555,15 @@ const wxString htmlWidgetAssets::getHTMLText(double& tBalance)
     PrettyWriter<StringBuffer> json_writer(json_buffer);
     json_writer.StartObject();
     json_writer.Key("NAME");
-    json_writer.String(_("Assets").c_str());
+    json_writer.String(_("Assets").utf8_str());
     json_writer.Key("VALUE");
-    json_writer.String(Model_Currency::toCurrency(asset_balance).c_str());
+    json_writer.String(Model_Currency::toCurrency(asset_balance).utf8_str());
     json_writer.EndObject();
 
     wxLogDebug("======= mmHomePagePanel::getAssetsJSON =======");
-    wxLogDebug("RapidJson\n%s", json_buffer.GetString());
+    wxLogDebug("RapidJson\n%s", wxString::FromUTF8(json_buffer.GetString()));
 
-    return json_buffer.GetString();
+    return wxString::FromUTF8(json_buffer.GetString());
 }
 
 htmlWidgetAssets::~htmlWidgetAssets()
@@ -631,8 +628,8 @@ const wxString htmlWidgetAccounts::displayAccounts(double& tBalance, int type = 
 
     const wxString idStr = typeStr[type].first;
     wxString output = "<table class = 'sortable table'>\n";
-    output += "<col style=\"width:50%\"><col style=\"width:25%\"><col style=\"width:25%\">\n";
-    output += "<thead><tr><th nowrap>";
+    output += R"(<col style="width:50%"><col style="width:25%"><col style="width:25%">)";
+    output += "<thead><tr><th nowrap>\n";
     output += typeStr[type].second;
 
     output += "</th><th class = 'text-right'>" + _("Reconciled") + "</th>\n";
@@ -664,8 +661,9 @@ const wxString htmlWidgetAccounts::displayAccounts(double& tBalance, int type = 
             (vAccts == VIEW_ACCOUNTS_ALL_STR)))
         {
             body += "<tr>";
-            body += wxString::Format("<td sorttable_customkey='*%s*' nowrap><a href='acct:%i' oncontextmenu='return false;'>%s</a></td>\n"
-                , account.ACCOUNTNAME, account.ACCOUNTID, account.ACCOUNTNAME);
+            body += wxString::Format("<td sorttable_customkey=\"*%s*\" nowrap><a href=\"acct:%i\" oncontextmenu=\"return false;\" target=\"_blank\">%s</a>%s</td>\n"
+                , account.ACCOUNTNAME, account.ACCOUNTID, account.ACCOUNTNAME,
+                account.WEBSITE.empty() ? "" : wxString::Format("&nbsp;&nbsp;&nbsp;&nbsp;(<a href='%s' oncontextmenu='return false;' target='_blank'>WWW</a>)", account.WEBSITE));
             body += wxString::Format("<td class='money' sorttable_customkey='%f' nowrap>%s</td>\n", reconciledBal, Model_Currency::toCurrency(reconciledBal, currency));
             body += wxString::Format("<td class='money' sorttable_customkey='%f' colspan='2' nowrap>%s</td>\n", bal, Model_Currency::toCurrency(bal, currency));
             body += "</tr>\n";
@@ -684,3 +682,93 @@ htmlWidgetAccounts::~htmlWidgetAccounts()
 {
 }
 
+// Currency exchange rates
+const wxString htmlWidgetCurrency::getHtmlText()
+{
+
+    const char* currencyRatesTemplate = R"(
+<div class = "container">
+<b><TMPL_VAR FRAME_NAME></b>
+<a id='CURRENCY_RATES_label' onclick='toggleTable("CURRENCY_RATES");' href='#CURRENCY_RATES' oncontextmenu='return false;'>[-]</a>
+<table class="table" id='CURRENCY_RATES'>
+<thead>
+<tr><th></th> <TMPL_VAR HEADER></tr>
+</thead>
+<tbody>
+<TMPL_LOOP NAME=CONTENTS>
+<tr><td class ='success'><TMPL_VAR CURRENCY_SYMBOL></td><TMPL_VAR CONVERSION_RATE></tr>
+</TMPL_LOOP>
+</tbody>
+</table>
+</div>
+)";
+
+
+    const wxString today = wxDate::Today().FormatISODate();
+    const wxString baseCurrencySymbol = Model_Currency::GetBaseCurrency()->CURRENCY_SYMBOL;
+    std::map<wxString, double> usedRates;
+    const auto currencies = Model_Currency::instance().all();
+    int limit = 10;
+    for (const auto currency : currencies)
+    {
+        if (Model_Account::is_used(currency)) {
+
+            double convertionRate = Model_CurrencyHistory::getDayRate(currency.CURRENCYID
+                , today);
+            usedRates[currency.CURRENCY_SYMBOL] = convertionRate;
+
+            if (--limit <= 0) {
+                break;
+            }
+        }
+    }
+
+    if (usedRates.size() == 1) {
+        return "";
+    }
+    wxString header;
+    loop_t contents;
+    for (const auto i : usedRates)
+    {
+        row_t r;
+        r(L"CURRENCY_SYMBOL") = i.first;
+        wxString row;
+        for (const auto j : usedRates)
+        {
+            row += wxString::Format("<td%s>%s</td>" //<td class ='active'>
+                , j.first == i.first ? " class ='active'" : ""
+                , j.first == i.first ? "" : Model_Currency::toString(
+                    j.second / i.second, nullptr, 4)
+            );
+        }
+        header += wxString::Format("<th>%s</th>", i.first);
+        r(L"CONVERSION_RATE") = row;
+
+        contents += r;
+    }
+    mm_html_template report(currencyRatesTemplate);
+    report(L"CONTENTS") = contents;
+    report(L"FRAME_NAME") = _("Currency Exchange Rates");
+    report(L"HEADER") = header;
+
+    wxString out = wxEmptyString;
+    try
+    {
+        out = report.Process();
+    }
+    catch (const syntax_ex& e)
+    {
+        return e.what();
+    }
+    catch (...)
+    {
+        return _("Caught exception");
+    }
+
+    return out;
+
+}
+
+htmlWidgetCurrency::~htmlWidgetCurrency()
+{
+}

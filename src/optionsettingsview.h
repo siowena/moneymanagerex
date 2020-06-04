@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include "optionsettingsbase.h"
 #include <wx/spinctrl.h>
+#include <wx/slider.h>
 
 class OptionSettingsView : public OptionSettingsBase
 {
@@ -38,7 +39,7 @@ public:
     ~OptionSettingsView();
 
 public:
-    virtual void SaveSettings();
+    virtual bool SaveSettings();
 
 private:
     void Create();
@@ -55,12 +56,11 @@ private:
     wxButton* m_UDFCB7;
 
     wxChoice* m_choice_visible;
-    wxChoice* m_choice_trans_visible;
     wxSpinCtrl* m_scale_factor;
+    wxSpinCtrl* m_icon_size;
 
     wxCheckBox* m_budget_financial_years;
     wxCheckBox* m_budget_include_transfers;
-    wxCheckBox* m_budget_setup_without_summary;
     wxCheckBox* m_budget_summary_without_category;
     wxCheckBox* m_ignore_future_transactions;
 

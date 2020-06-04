@@ -16,94 +16,20 @@
  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  ********************************************************/
 
-#include "mmreportspanel.h"
+#include "assetdialog.h"
 #include "attachmentdialog.h"
+#include "mmreportspanel.h"
 #include "mmex.h"
 #include "mmframe.h"
 #include "mmcheckingpanel.h"
 #include "paths.h"
 #include "platfdep.h"
+#include "sharetransactiondialog.h"
 #include "transdialog.h"
 #include "util.h"
 #include "reports/htmlbuilder.h"
 #include "model/allmodel.h"
 #include <wx/wrapsizer.h>
-
-class WebViewHandlerReportsPage : public wxWebViewHandler
-{
-public:
-    WebViewHandlerReportsPage(mmReportsPanel *panel, const wxString& protocol)
-        : wxWebViewHandler(protocol), m_reportPanel(panel)
-    {
-    }
-
-    virtual ~WebViewHandlerReportsPage()
-    {
-    }
-
-    virtual wxFSFile* GetFile(const wxString &uri)
-    {
-        mmGUIFrame* frame = m_reportPanel->m_frame;
-        wxString sData;
-        wxRegEx pattern(R"(^https?:\/\/)");
-        if (pattern.Matches(uri))
-        {
-            wxLaunchDefaultBrowser(uri);
-            wxCommandEvent evt(wxEVT_COMMAND_MENU_SELECTED, MENU_REPORT_BUG);
-            frame->GetEventHandler()->AddPendingEvent(evt);
-        }
-        else if (uri.StartsWith("trxid:", &sData))
-        {
-            long transID = -1;
-            if (sData.ToLong(&transID)) {
-                const Model_Checking::Data* transaction = Model_Checking::instance().get(transID);
-                if (transaction && transaction->TRANSID > -1)
-                {
-                    const Model_Account::Data* account = Model_Account::instance().get(transaction->ACCOUNTID);
-                    if (account) {
-                        frame->setAccountNavTreeSection(account->ACCOUNTNAME);
-                        frame->setGotoAccountID(transaction->ACCOUNTID, transID);
-                        wxCommandEvent evt(wxEVT_COMMAND_MENU_SELECTED, MENU_GOTOACCOUNT);
-                        frame->GetEventHandler()->AddPendingEvent(evt);
-                    }
-                }
-            }
-        }
-        else if (uri.StartsWith("trx:", &sData))
-        {
-            long transID = -1;
-            if (sData.ToLong(&transID)) {
-                const Model_Checking::Data* transaction = Model_Checking::instance().get(transID);
-                if (transaction && transaction->TRANSID > -1)
-                {
-                    mmTransDialog dlg(nullptr, -1, transID, 0);
-                    if (dlg.ShowModal() == wxID_OK)
-                    {
-                        wxString error;
-                        m_reportPanel->rb_->getHTMLText();
-                        m_reportPanel->saveReportText(error);
-                    }
-                    m_reportPanel->browser_->LoadURL(getURL(mmex::getReportIndex()));
-                }
-            }
-        }
-        else if (uri.StartsWith("attachment:", &sData))
-        {
-            const wxString RefType = sData.BeforeFirst('|');
-            int RefId = wxAtoi(sData.AfterFirst('|'));
-
-            if (Model_Attachment::instance().all_type().Index(RefType) != wxNOT_FOUND && RefId > 0)
-            {
-                mmAttachmentManage::OpenAttachmentFromPanelIcon(nullptr, RefType, RefId);
-                m_reportPanel->browser_->LoadURL(getURL(mmex::getReportIndex()));
-            }
-        }
-
-        return nullptr;
-    }
-private:
-    mmReportsPanel *m_reportPanel;
-};
 
 wxBEGIN_EVENT_TABLE(mmReportsPanel, wxPanel)
 EVT_CHOICE(ID_CHOICE_DATE_RANGE, mmReportsPanel::OnDateRangeChanged)
@@ -148,16 +74,19 @@ mmReportsPanel::mmReportsPanel(
     m_all_date_ranges.push_back(new mmLastFinancialYear(day, month));
     m_all_date_ranges.push_back(new mmAllTime());
     m_all_date_ranges.push_back(new mmLast365Days());
+    m_all_date_ranges.push_back(new mmSpecifiedRange(wxDate::Today().SetDay(1), wxDate::Today()));
 
     Create(parent, winid, pos, size, style, name);
 }
 
 mmReportsPanel::~mmReportsPanel()
 {
-    if (cleanup_ && rb_)
+    if (cleanup_ && rb_) {
         delete rb_;
+    }
     std::for_each(m_all_date_ranges.begin(), m_all_date_ranges.end(), std::mem_fun(&mmDateRange::destroy));
     m_all_date_ranges.clear();
+    clearVFprintedFiles("rep");
 }
 
 bool mmReportsPanel::Create(wxWindow *parent, wxWindowID winid
@@ -167,24 +96,22 @@ bool mmReportsPanel::Create(wxWindow *parent, wxWindowID winid
     SetExtraStyle(GetExtraStyle() | wxWS_EX_BLOCK_EVENTS);
     wxPanel::Create(parent, winid, pos, size, style, name);
 
+    rb_->restoreReportSettings();
+
     CreateControls();
     GetSizer()->Fit(this);
     GetSizer()->SetSizeHints(this);
 
-    wxString error;
-    if (saveReportText(error))
-        browser_->LoadURL(getURL(mmex::getReportIndex()));
-    else
-        browser_->SetPage(error, "");
+    saveReportText();
 
     Model_Usage::instance().pageview(this);
 
     return TRUE;
 }
 
-bool mmReportsPanel::saveReportText(wxString& error, bool initial)
+bool mmReportsPanel::saveReportText(bool initial)
 {
-    error = "";
+
     if (!rb_) return false;
 
     rb_->initial_report(initial);
@@ -196,13 +123,16 @@ bool mmReportsPanel::saveReportText(wxString& error, bool initial)
         int rp = rb_->report_parameters();
         if (rp & rb_->RepParams::DATE_RANGE)
         {
-            mmDateRange* date_range = static_cast<mmDateRange*>
-                (m_date_ranges->GetClientData(selectedItem));
-            if (!date_range)
+            mmDateRange* date_range = static_cast<mmDateRange*>(m_date_ranges->GetClientData(selectedItem));
+
+            if (date_range->title() == "Custom")
             {
                 wxDateTime begin_date = m_start_date->GetValue();
                 wxDateTime end_date = m_end_date->GetValue();
-                date_range = new mmSpecifiedRange(begin_date, end_date);
+                date_range->start_date(begin_date);
+                date_range->end_date(end_date);
+                m_start_date->Enable();
+                m_end_date->Enable();
             }
             rb_->date_range(date_range, selectedItem);
         }
@@ -225,23 +155,20 @@ bool mmReportsPanel::saveReportText(wxString& error, bool initial)
     json_writer.Key("module");
     json_writer.String("Report");
     json_writer.Key("name");
-    json_writer.String(rb_->getReportTitle().c_str());
-
-    const auto file_name = rb_->getFileName();
-    wxLogDebug("Report File Name: %s", file_name);
+    json_writer.String(rb_->getReportTitle().utf8_str());
 
     const auto time = wxDateTime::UNow();
 
-    if (!Model_Report::outputReportFile(rb_->getHTMLText(), file_name))
-        error = _("Error");
+    const auto& name = getVFname4print("rep", rb_->getHTMLText());
+    browser_->LoadURL(name);
 
     json_writer.Key("seconds");
     json_writer.Double((wxDateTime::UNow() - time).GetMilliseconds().ToDouble() / 1000);
     json_writer.EndObject();
 
-    Model_Usage::instance().AppendToUsage(json_buffer.GetString());
+    Model_Usage::instance().AppendToUsage(wxString::FromUTF8(json_buffer.GetString()));
 
-    return error.empty();
+    return true;
 }
 
 // Adjust wxStaticText size after font change
@@ -261,20 +188,23 @@ void mmReportsPanel::CreateControls()
     SetSizer(itemBoxSizer2);
 
     wxPanel* itemPanel3 = new wxPanel(this, wxID_ANY);
-    itemBoxSizer2->Add(itemPanel3, 0, wxGROW | wxALL, 5);
+    itemBoxSizer2->Add(itemPanel3, 0, wxGROW | wxALL, 0);
 
     wxWrapSizer* itemBoxSizerHeader = new wxWrapSizer();
     itemPanel3->SetSizer(itemBoxSizerHeader);
 
-    wxStaticText* itemStaticText9 = new wxStaticText(itemPanel3
-        , wxID_ANY, _("REPORTS"));
-    mmSetOwnFont(itemStaticText9, GetFont().Larger().Bold());
-    itemBoxSizerHeader->Add(itemStaticText9, 0, wxALL | wxALIGN_CENTER_VERTICAL, 1);
-    itemBoxSizerHeader->AddSpacer(30);
+    wxStaticText* itemStaticText9 = new wxStaticText(itemPanel3, wxID_ANY, "");
+    itemBoxSizerHeader->Add(itemStaticText9, 0, wxALL | wxALIGN_CENTER_VERTICAL, 2);
 
     if (rb_)
     {
         int rp = rb_->report_parameters();
+
+        if (rp == 0) {
+            itemPanel3->SetMinSize(wxSize(0, 0));
+            itemPanel3->Fit();
+        }
+
         if (rp & rb_->RepParams::DATE_RANGE)
         {
             wxStaticText* itemStaticTextH1 = new wxStaticText(itemPanel3
@@ -285,11 +215,9 @@ void mmReportsPanel::CreateControls()
             m_date_ranges = new wxChoice(itemPanel3, ID_CHOICE_DATE_RANGE);
             m_date_ranges->SetName("DateRanges");
 
-            for (const auto & date_range : m_all_date_ranges)
-            {
+            for (const auto & date_range : m_all_date_ranges) {
                 m_date_ranges->Append(date_range->local_title(), date_range);
             }
-            m_date_ranges->Append(_("Custom"), static_cast<mmDateRange*>(nullptr));
 
             int sel_id = rb_->getDateSelection();
             if (sel_id < 0 || static_cast<size_t>(sel_id) >= m_all_date_ranges.size()) {
@@ -345,7 +273,7 @@ void mmReportsPanel::CreateControls()
             mmDateYearMonth* up_down_month = new mmDateYearMonth(itemPanel3);
             up_down_month->Connect(wxEVT_BUTTON, wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(mmDateYearMonth::OnButtonPress), nullptr, this);
             rb_->setSelection(m_shift);
-            
+
             itemBoxSizerHeader->Add(up_down_month, 0, wxALL, 1);
             itemBoxSizerHeader->AddSpacer(30);
         }
@@ -395,8 +323,9 @@ void mmReportsPanel::CreateControls()
             m_accounts->Append(_("Specific Accounts"));
             for (const auto& e : Model_Account::instance().TYPE_CHOICES)
             {
-                if (e.first != Model_Account::INVESTMENT)
+                if (e.first != Model_Account::INVESTMENT) {
                     m_accounts->Append(wxGetTranslation(e.second), new wxStringClientData(e.second));
+                }
             }
             m_accounts->SetSelection(rb_->getAccountSelection());
 
@@ -423,10 +352,8 @@ void mmReportsPanel::CreateControls()
 
     browser_ = wxWebView::New(this, mmID_BROWSER);
     browser_->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new wxWebViewFSHandler("memory")));
-    browser_->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new WebViewHandlerReportsPage(this, "trxid")));
-    browser_->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new WebViewHandlerReportsPage(this, "trx")));
-    browser_->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new WebViewHandlerReportsPage(this, "attachment")));
-    browser_->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new WebViewHandlerReportsPage(this, "https")));
+
+    Bind(wxEVT_WEBVIEW_NEWWINDOW, &mmReportsPanel::OnNewWindow, this, browser_->GetId());
 
     itemBoxSizer2->Add(browser_, 1, wxGROW | wxALL, 1);
 }
@@ -436,32 +363,21 @@ void mmReportsPanel::PrintPage()
     browser_->Print();
 }
 
-void mmReportsPanel::OnDateRangeChanged(wxCommandEvent& event)
+void mmReportsPanel::OnDateRangeChanged(wxCommandEvent& WXUNUSED(event))
 {
-    const wxString i = m_date_ranges->GetName();
 
-    if (i == "DateRanges")
+    const mmDateRange* date_range = static_cast<mmDateRange*>(this->m_date_ranges->GetClientData(this->m_date_ranges->GetSelection()));
+    if (date_range)
     {
-        const mmDateRange* date_range = static_cast<mmDateRange*>(this->m_date_ranges->GetClientData(this->m_date_ranges->GetSelection()));
-        if (date_range)
-        {
-            m_start_date->Enable(false);
-            this->m_start_date->SetValue(date_range->start_date());
-            m_end_date->Enable(false);
-            this->m_end_date->SetValue(date_range->end_date());
-        }
-        else
-        {
-            m_start_date->Enable();
-            m_end_date->Enable();
-        }
+        m_start_date->Enable(false);
+        this->m_start_date->SetValue(date_range->start_date());
+        m_end_date->Enable(false);
+        this->m_end_date->SetValue(date_range->end_date());
+
+        rb_->setReportSettings();
     }
 
-    wxString error;
-    if (this->saveReportText(error, false))
-        browser_->LoadURL(getURL(mmex::getReportIndex()));
-    else
-        browser_->SetPage(error, "");
+    saveReportText(false);
 }
 
 void mmReportsPanel::OnAccountChanged(wxCommandEvent& WXUNUSED(event))
@@ -473,14 +389,13 @@ void mmReportsPanel::OnAccountChanged(wxCommandEvent& WXUNUSED(event))
         {
             wxString accountSelection;
             wxStringClientData* type_obj = static_cast<wxStringClientData *>(m_accounts->GetClientObject(m_accounts->GetSelection()));
-            if (type_obj) accountSelection = type_obj->GetData();
+            if (type_obj) {
+                accountSelection = type_obj->GetData();
+            }
             rb_->setAccounts(sel, accountSelection);
 
-            wxString error;
-            if (saveReportText(error, false))
-                browser_->LoadURL(getURL(mmex::getReportFullFileName(rb_->getFileName())));
-            else
-                browser_->SetPage(error, "");
+            saveReportText(false);
+            rb_->setReportSettings();
         }
     }
 }
@@ -489,11 +404,8 @@ void mmReportsPanel::OnStartEndDateChanged(wxDateEvent& WXUNUSED(event))
 {
     if (rb_)
     {
-        wxString error;
-        if (saveReportText(error, false))
-            browser_->LoadURL(getURL(mmex::getReportFullFileName(rb_->getFileName())));
-        else
-            browser_->SetPage(error, "");
+        saveReportText(false);
+        rb_->setReportSettings();
     }
 }
 
@@ -505,12 +417,8 @@ void mmReportsPanel::OnChartChanged(wxCommandEvent& WXUNUSED(event))
         if ((sel == 1) || (sel != rb_->getChartSelection()))
         {
             rb_->chart(sel);
-
-            wxString error;
-            if (saveReportText(error, false))
-                browser_->LoadURL(getURL(mmex::getReportFullFileName(rb_->getFileName())));
-            else
-                browser_->SetPage(error, "");
+            saveReportText(false);
+            rb_->setReportSettings();
         }
     }
 }
@@ -521,11 +429,93 @@ void mmReportsPanel::OnShiftPressed(wxCommandEvent& event)
     {
         m_shift = event.GetInt();
         rb_->setSelection(m_shift);
-
-        wxString error;
-        if (saveReportText(error, false))
-            browser_->LoadURL(getURL(mmex::getReportFullFileName(rb_->getFileName())));
-        else
-            browser_->SetPage(error, "");
+        saveReportText(false);
     }
+}
+
+void mmReportsPanel::OnNewWindow(wxWebViewEvent& evt)
+{
+    const wxString uri = evt.GetURL();
+    wxString sData;
+
+    wxRegEx pattern(R"(^https?:\/\/)");
+    if (pattern.Matches(uri))
+    {
+        wxLaunchDefaultBrowser(uri);
+    }
+    else if (uri.StartsWith("trxid:", &sData))
+    {
+        long transID = -1;
+        if (sData.ToLong(&transID)) {
+            const Model_Checking::Data* transaction = Model_Checking::instance().get(transID);
+            if (transaction && transaction->TRANSID > -1)
+            {
+                const Model_Account::Data* account = Model_Account::instance().get(transaction->ACCOUNTID);
+                if (account) {
+                    m_frame->setAccountNavTreeSection(account->ACCOUNTNAME);
+                    m_frame->setGotoAccountID(transaction->ACCOUNTID, transID);
+                    wxCommandEvent event(wxEVT_COMMAND_MENU_SELECTED, MENU_GOTOACCOUNT);
+                    m_frame->GetEventHandler()->AddPendingEvent(event);
+                }
+            }
+        }
+    }
+    else if (uri.StartsWith("trx:", &sData))
+    {
+        long transId = -1;
+        if (sData.ToLong(&transId))
+        {
+            Model_Checking::Data* transaction = Model_Checking::instance().get(transId);
+            if (transaction && transaction->TRANSID > -1)
+            {
+                if (Model_Checking::foreignTransaction(*transaction))
+                {
+                    Model_Translink::Data translink = Model_Translink::TranslinkRecord(transId);
+                    if (translink.LINKTYPE == Model_Attachment::reftype_desc(Model_Attachment::STOCK))
+                    {
+                        ShareTransactionDialog dlg(m_frame, &translink, transaction);
+                        if (dlg.ShowModal() == wxID_OK)
+                        {
+                            rb_->getHTMLText();
+                            saveReportText();
+                        }
+                    }
+                    else
+                    {
+                        mmAssetDialog dlg(m_frame, m_frame, &translink, transaction);
+                        if (dlg.ShowModal() == wxID_OK)
+                        {
+                            rb_->getHTMLText();
+                            saveReportText();
+                        }
+                    }
+                }
+                else
+                {
+                    mmTransDialog dlg(m_frame, -1, transId, 0);
+                    if (dlg.ShowModal() == wxID_OK)
+                    {
+                        rb_->getHTMLText();
+                        saveReportText();
+                    }
+                }
+                const auto name = getVFname4print("rep", getPrintableBase()->getHTMLText());
+                browser_->LoadURL(name);
+            }
+        }
+    }
+    else if (uri.StartsWith("attachment:", &sData))
+    {
+        const wxString RefType = sData.BeforeFirst('|');
+        int RefId = wxAtoi(sData.AfterFirst('|'));
+
+        if (Model_Attachment::instance().all_type().Index(RefType) != wxNOT_FOUND && RefId > 0)
+        {
+            mmAttachmentManage::OpenAttachmentFromPanelIcon(m_frame, RefType, RefId);
+            const auto name = getVFname4print("rep", getPrintableBase()->getHTMLText());
+            browser_->LoadURL(name);
+        }
+    }
+
+    evt.Skip();
 }

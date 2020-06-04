@@ -154,8 +154,8 @@ void SplitTransactionDialog::CreateControls()
     buttons_panel->SetSizer(buttons_sizer);
 
     wxSizerFlags flagsH = wxSizerFlags(g_flagsH).Border(wxLEFT | wxRIGHT | wxBOTTOM, 5).Center();
-	wxSizerFlags flagsV = wxSizerFlags(g_flagsV).Border(wxLEFT | wxRIGHT | wxBOTTOM, 5).Center();
-	wxBoxSizer* mainButtonSizer = new wxBoxSizer(wxVERTICAL);
+    wxSizerFlags flagsV = wxSizerFlags(g_flagsV).Border(wxLEFT | wxRIGHT | wxBOTTOM, 5).Center();
+    wxBoxSizer* mainButtonSizer = new wxBoxSizer(wxVERTICAL);
     wxBoxSizer* topRowButtonSizer = new wxBoxSizer(wxHORIZONTAL);
     wxBoxSizer* bottomRowButtonSizer = new wxBoxSizer(wxHORIZONTAL);
     mainButtonSizer->Add(topRowButtonSizer, flagsV);
@@ -216,7 +216,7 @@ void SplitTransactionDialog::OnOk( wxCommandEvent& /*event*/ )
     }
 }
 
-void SplitTransactionDialog::OnButtonRemoveClick( wxCommandEvent& event )
+void SplitTransactionDialog::OnButtonRemoveClick( wxCommandEvent& WXUNUSED(event))
 {
     if (selectedIndex_ < 0 || selectedIndex_ >= static_cast<int>(this->m_local_splits.size()))
         return;
@@ -256,7 +256,7 @@ void SplitTransactionDialog::OnListItemSelected(wxDataViewEvent& event)
     SetDisplayEditDeleteButtons();
 }
 
-void SplitTransactionDialog::OnListDblClick(wxDataViewEvent& event)
+void SplitTransactionDialog::OnListDblClick(wxDataViewEvent& WXUNUSED(event))
 {
     if (itemButtonEdit_->IsShown()) EditEntry(selectedIndex_);
 }

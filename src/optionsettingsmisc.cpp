@@ -100,13 +100,13 @@ void OptionSettingsMisc::Create()
         , wxDefaultPosition, wxSize(140, -1), default_values);
     defaultDateChoice->SetSelection(Option::instance().TransDateDefault());
 
+    default_values.Add(_("Unused"));
     wxChoice* defaultPayeeChoice = new wxChoice(this
         , ID_DIALOG_OPTIONS_DEFAULT_TRANSACTION_PAYEE
         , wxDefaultPosition, wxSize(140, -1), default_values);
     defaultPayeeChoice->SetSelection(Option::instance().TransPayeeSelection());
 
     default_values[1] = (_("Last used for payee"));
-    default_values.Add(_("Unused"));
     wxChoice* defaultCategoryChoice = new wxChoice(this
         , ID_DIALOG_OPTIONS_DEFAULT_TRANSACTION_CATEGORY
         , wxDefaultPosition, defaultPayeeChoice->GetSize(), default_values);
@@ -193,7 +193,7 @@ void OptionSettingsMisc::Create()
     OptionSettingsMisc::OnBackupChanged(evt);
 }
 
-void OptionSettingsMisc::OnBackupChanged(wxCommandEvent& event)
+void OptionSettingsMisc::OnBackupChanged(wxCommandEvent& WXUNUSED(event))
 {
     wxCheckBox* ChkBackup = static_cast<wxCheckBox*>(FindWindow(ID_DIALOG_OPTIONS_CHK_BACKUP));
     wxCheckBox* ChkBackupUpdate = static_cast<wxCheckBox*>(FindWindow(ID_DIALOG_OPTIONS_CHK_BACKUP_UPDATE));
@@ -216,7 +216,7 @@ void OptionSettingsMisc::SaveStocksUrl()
     }
 }
 
-void OptionSettingsMisc::SaveSettings()
+bool OptionSettingsMisc::SaveSettings()
 {
     wxChoice* itemChoice = static_cast<wxChoice*>(FindWindow(ID_DIALOG_OPTIONS_DEFAULT_TRANSACTION_PAYEE));
     Option::instance().TransPayeeSelection(itemChoice->GetSelection());
@@ -244,4 +244,6 @@ void OptionSettingsMisc::SaveSettings()
     wxTextCtrl* st = static_cast<wxTextCtrl*>(FindWindow(ID_DIALOG_OPTIONS_TEXTCTRL_DELIMITER4));
     const wxString& delim = st->GetValue();
     if (!delim.IsEmpty()) Model_Infotable::instance().Set("DELIMITER", delim);
+
+    return true;
 }

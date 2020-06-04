@@ -18,9 +18,10 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include "Model_CurrencyHistory.h"
 #include "Model_Currency.h"
+#include "option.h"
 
 Model_CurrencyHistory::Model_CurrencyHistory()
-: Model<DB_Table_CURRENCYHISTORY_V1>()
+    : Model<DB_Table_CURRENCYHISTORY_V1>()
 {
 };
 
@@ -85,11 +86,16 @@ int Model_CurrencyHistory::addUpdate(const int& currencyID, const wxDate& date, 
 /** Return the rate for a specific currency in a specific day*/
 double Model_CurrencyHistory::getDayRate(const int& currencyID, const wxString& DateISO)
 {
+    if (!Option::instance().getCurrencyHistoryEnabled())
+        return Model_Currency::instance().get(currencyID)->BASECONVRATE;
     wxDate Date;
     if (Date.ParseDate(DateISO))
         return Model_CurrencyHistory::getDayRate(currencyID, Date);
     else
+    {
+        wxASSERT(false);
         return 1;
+    }
 }
 
 double Model_CurrencyHistory::getDayRate(const int& currencyID, const wxDate& Date)
@@ -97,15 +103,47 @@ double Model_CurrencyHistory::getDayRate(const int& currencyID, const wxDate& Da
     if (currencyID == Model_Currency::GetBaseCurrency()->CURRENCYID || currencyID == -1)
         return 1;
 
-    Model_CurrencyHistory::Data_Set Data = Model_CurrencyHistory::instance().find(Model_CurrencyHistory::CURRENCYID(currencyID)
-        , Model_CurrencyHistory::CURRDATE(Date, LESS_OR_EQUAL));
-    double  nearest = Data.empty() ? 1 : Data.back().CURRVALUE;
-    return nearest;
+    if (!Option::instance().getCurrencyHistoryEnabled())
+        return Model_Currency::instance().get(currencyID)->BASECONVRATE;
+
+    Model_CurrencyHistory::Data_Set Data = Model_CurrencyHistory::instance().find(Model_CurrencyHistory::CURRENCYID(currencyID), Model_CurrencyHistory::CURRDATE(Date));
+    if (!Data.empty())
+    {
+        //Rate found for specified day
+        return Data.back().CURRVALUE;
+    }
+    else if (Model_CurrencyHistory::instance().find(Model_CurrencyHistory::CURRENCYID(currencyID)).size() > 0)
+    {
+        //Rate not found for specified day, look at previous and next
+        Model_CurrencyHistory::Data_Set DataPrevious = Model_CurrencyHistory::instance().find(Model_CurrencyHistory::CURRENCYID(currencyID), Model_CurrencyHistory::CURRDATE(Date, LESS_OR_EQUAL));
+        Model_CurrencyHistory::Data_Set DataNext = Model_CurrencyHistory::instance().find(Model_CurrencyHistory::CURRENCYID(currencyID), Model_CurrencyHistory::CURRDATE(Date, GREATER_OR_EQUAL));
+
+        if (!DataPrevious.empty() && !DataNext.empty())
+        {
+            const wxTimeSpan spanPast = Date.Subtract(Model::to_date(DataPrevious.back().CURRDATE));
+            const wxTimeSpan spanFuture = Model::to_date(DataNext[0].CURRDATE).Subtract(Date);
+
+            return spanPast <= spanFuture ? DataPrevious.back().CURRVALUE : DataNext[0].CURRVALUE;
+        }
+        else if (!DataPrevious.empty())
+        {
+            return DataPrevious.back().CURRVALUE;
+        }
+        else if (!DataNext.empty())
+        {
+            return DataNext[0].CURRVALUE;
+        }
+    }
+
+    return Model_Currency::instance().get(currencyID)->BASECONVRATE;
 }
 
-/** Return the last attachment number linked to a specific object */
+/** Return the last rate for specified currency */
 double Model_CurrencyHistory::getLastRate(const int& currencyID)
 {
+    if (!Option::instance().getCurrencyHistoryEnabled())
+        return Model_Currency::instance().get(currencyID)->BASECONVRATE;
+
     Model_CurrencyHistory::Data_Set histData = Model_CurrencyHistory::instance().find(Model_CurrencyHistory::CURRENCYID(currencyID));
     std::stable_sort(histData.begin(), histData.end(), SorterByCURRDATE());
 

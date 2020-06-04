@@ -56,6 +56,7 @@ private:
 
     void OnHelpPageBack(wxCommandEvent& event);
     void OnHelpPageForward(wxCommandEvent& event);
+    void OnNewWindow(wxWebViewEvent& evt);
 };
 
 #endif

@@ -49,34 +49,10 @@ public:
     void CreateControls();
     void sortTable() {}
 
-    bool saveReportText(wxString& error, bool initial = true);
+    bool saveReportText(bool initial = true);
     mmPrintableBase* getPrintableBase() { return rb_; }
     void PrintPage();
 
-public:
-    void OnDateRangeChanged(wxCommandEvent& event);
-    void OnStartEndDateChanged(wxDateEvent& event);
-    void OnAccountChanged(wxCommandEvent& event);
-    void OnChartChanged(wxCommandEvent& event);
-    void OnShiftPressed(wxCommandEvent& event);
-
-protected:
-    std::vector<mmDateRange*> m_all_date_ranges;
-    wxChoice* m_date_ranges;
-    wxDatePickerCtrl *m_start_date, *m_end_date;
-    wxWebView * browser_;
-    mmPrintableBase* rb_;
-    wxChoice* m_accounts;
-    wxChoice* m_chart;
-
-    friend class WebViewHandlerReportsPage;
-
-private:
-    bool cleanup_;
-    bool cleanupmem_;
-    int m_shift;
-    wxString htmlreport_;
-public:
     mmGUIFrame *m_frame;
 
     enum RepPanel
@@ -87,6 +63,29 @@ public:
         ID_CHOICE_END_DATE,
         ID_CHOICE_CHART,
     };
+
+private:
+    void OnNewWindow(wxWebViewEvent& evt);
+    std::vector<mmDateRange*> m_all_date_ranges;
+    wxChoice* m_date_ranges;
+    wxDatePickerCtrl *m_start_date, *m_end_date;
+    wxWebView * browser_;
+    mmPrintableBase* rb_;
+    wxChoice* m_accounts;
+    wxChoice* m_chart;
+
+private:
+    void OnDateRangeChanged(wxCommandEvent& event);
+    void OnStartEndDateChanged(wxDateEvent& event);
+    void OnAccountChanged(wxCommandEvent& event);
+    void OnChartChanged(wxCommandEvent& event);
+    void OnShiftPressed(wxCommandEvent& event);
+
+    bool cleanup_;
+    bool cleanupmem_;
+    int m_shift;
+    wxString htmlreport_;
+
 };
 
 #endif

@@ -39,11 +39,6 @@ mmReportCategoryExpenses::~mmReportCategoryExpenses()
 {
 }
 
-int mmReportCategoryExpenses::report_parameters()
-{
-    return RepParams::DATE_RANGE | RepParams::CHART | RepParams::ACCOUNTS_LIST;
-}
-
 void  mmReportCategoryExpenses::RefreshData()
 {
     data_.clear();
@@ -221,23 +216,27 @@ wxString mmReportCategoryExpenses::getHTMLText()
 mmReportCategoryExpensesGoes::mmReportCategoryExpensesGoes()
     : mmReportCategoryExpenses(_("Where the Money Goes"), TYPE::GOES)
 {
+    setReportParameters(Reports::WheretheMoneyGoes);
 }
 
 mmReportCategoryExpensesComes::mmReportCategoryExpensesComes()
     : mmReportCategoryExpenses(_("Where the Money Comes From"), TYPE::COME)
 {
+    setReportParameters(Reports::WheretheMoneyComesFrom);
 }
 
 mmReportCategorySummary::mmReportCategorySummary()
     : mmReportCategoryExpenses(_("Summary"), TYPE::SUMMARY)
 {
     m_chart_selection = 1;
+    setReportParameters(Reports::CategoriesSummary);
 }
 
 mmReportCategoryExpensesCategories::mmReportCategoryExpensesCategories()
     : mmReportCategoryExpenses(_("Monthly"), TYPE::MONTHLY)
 {
     m_chart_selection = 1;
+    setReportParameters(Reports::CategoriesMonthly);
 }
 
 //----------------------------------------------------------------------------
@@ -246,16 +245,12 @@ mmReportCategoryOverTimePerformance::mmReportCategoryOverTimePerformance()
     : mmPrintableBase(_("Category Income/Expenses"))
 {
     m_date_range = new mmLast12Months();
+    setReportParameters(Reports::CategoryOverTimePerformance);
 }
 //----------------------------------------------------------------------------
 mmReportCategoryOverTimePerformance::~mmReportCategoryOverTimePerformance()
 {
     delete m_date_range;
-}
-
-int mmReportCategoryOverTimePerformance::report_parameters()
-{
-    return RepParams::MONTHES | RepParams::CHART | RepParams::ACCOUNTS_LIST;
 }
 
 wxString mmReportCategoryOverTimePerformance::getHTMLText()
@@ -265,8 +260,8 @@ wxString mmReportCategoryOverTimePerformance::getHTMLText()
     wxDate sd = m_date_range->start_date();
     wxDate ed = m_date_range->end_date();
     sd.Add(wxDateSpan::Months(m_date_selection));
-    ed.Add(wxDateSpan::Months(m_date_selection)).GetLastMonthDay();
-
+    ed.Add(wxDateSpan::Months(m_date_selection));
+    ed = ed.GetLastMonthDay();
     mmDateRange* date_range = new mmSpecifiedRange(sd, ed);
 
     //Get statistic
@@ -281,8 +276,8 @@ wxString mmReportCategoryOverTimePerformance::getHTMLText()
     std::map<int, std::map<int, double> > totals;
 
     // structure for sorting of data
-    struct data_holder { wxString name; double period[MONTHS_IN_PERIOD]; double overall; } line;
-    std::vector<data_holder> data;
+    struct html_data_holder { wxString name; double period[MONTHS_IN_PERIOD]; double overall; } line;
+    std::vector<html_data_holder> data;
     for (const auto& category : Model_Category::instance().all(Model_Category::COL_CATEGNAME))
     {
         int categID = category.CATEGID;
@@ -370,7 +365,7 @@ wxString mmReportCategoryOverTimePerformance::getHTMLText()
         {
             hb.addDivRow();
             hb.addDivCol17_67();
-            hb.addBarChart(labels, aData, "BarChart", 1000, 400);
+            hb.addBarChart(labels, aData, "BarChart", 640, 480);
             hb.endDiv();
             hb.endDiv();
         }

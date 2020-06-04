@@ -64,6 +64,7 @@ wxBEGIN_EVENT_TABLE(mmBillsDepositsPanel, wxPanel)
     EVT_BUTTON(wxID_PASTE, mmBillsDepositsPanel::OnEnterBDTransaction)
     EVT_BUTTON(wxID_IGNORE, mmBillsDepositsPanel::OnSkipBDTransaction)
     EVT_BUTTON(wxID_FILE, mmBillsDepositsPanel::OnOpenAttachment)
+    EVT_BUTTON(wxID_FILE2, mmBillsDepositsPanel::OnFilterTransactions)
 wxEND_EVENT_TABLE()
 /*******************************************************/
 wxBEGIN_EVENT_TABLE(billsDepositsListCtrl, mmListCtrl)
@@ -158,7 +159,7 @@ mmBillsDepositsPanel::mmBillsDepositsPanel(wxWindow *parent, wxWindowID winid
     : m_imageList(nullptr)
     , listCtrlAccount_(nullptr)
     , transFilterDlg_(nullptr)
-    , bitmapTransFilter_(nullptr)
+    , m_bitmapTransFilter(nullptr)
     , m_infoTextMini(nullptr)
     , m_infoText(nullptr)
 {
@@ -224,24 +225,17 @@ void mmBillsDepositsPanel::CreateControls()
     wxBoxSizer* itemBoxSizerHHeader2 = new wxBoxSizer(wxHORIZONTAL);
     itemBoxSizerVHeader->Add(itemBoxSizerHHeader2);
 
-    bitmapTransFilter_ = new wxStaticBitmap(headerPanel, wxID_ANY, mmBitmap(png::RIGHTARROW));
-    itemBoxSizerHHeader2->Add(bitmapTransFilter_, g_flagsBorder1H);
-    bitmapTransFilter_->Connect(wxID_ANY, wxEVT_LEFT_DOWN
-        , wxMouseEventHandler(mmBillsDepositsPanel::OnFilterTransactions), nullptr, this);
-    bitmapTransFilter_->Connect(wxID_ANY, wxEVT_RIGHT_DOWN
-        , wxMouseEventHandler(mmBillsDepositsPanel::OnFilterTransactions), nullptr, this);
-
-    itemBoxSizerHHeader2->AddSpacer(5);
-    wxStaticText* statTextTransFilter_ = new wxStaticText(headerPanel, wxID_ANY
-        , _("Transaction Filter"));
-    itemBoxSizerHHeader2->Add(statTextTransFilter_, 0, wxALIGN_CENTER_VERTICAL | wxALL, 1);
+    m_bitmapTransFilter = new wxButton(headerPanel, wxID_FILE2);
+    m_bitmapTransFilter->SetBitmap(mmBitmap(png::RIGHTARROW));
+    m_bitmapTransFilter->SetLabel(_("Transaction Filter"));
+    itemBoxSizerHHeader2->Add(m_bitmapTransFilter, g_flagsBorder1H);
 
     /* ---------------------- */
     wxSplitterWindow* itemSplitterWindowBillsDeposit = new wxSplitterWindow(this
         , wxID_ANY, wxDefaultPosition, wxSize(200, 200)
         , wxSP_3DBORDER | wxSP_3DSASH | wxNO_BORDER);
 
-    int x = Option::instance().IconSize();
+    int x = Option::instance().getIconSize();
     m_imageList = new wxImageList(x, x);
     m_imageList->Add(mmBitmap(png::FOLLOW_UP));
     m_imageList->Add(mmBitmap(png::RUN)); //TODO: auto exec ico
@@ -628,10 +622,10 @@ void billsDepositsListCtrl::OnEditBDSeries(wxCommandEvent& /*event*/)
         refreshVisualList(m_bdp->initVirtualListControl(dlg.GetTransID()));
 }
 
-void billsDepositsListCtrl::OnDeleteBDSeries(wxCommandEvent& /*event*/)
+void billsDepositsListCtrl::OnDeleteBDSeries(wxCommandEvent& WXUNUSED(event))
 {
+    if (m_bdp->bills_.empty()) return;
     if (m_selected_row < 0) return;
-    if (m_bdp->bills_.size() == 0) return;
 
     wxMessageDialog msgDlg(this, _("Do you really want to delete the series?")
         , _("Confirm Series Deletion")
@@ -851,33 +845,19 @@ void mmBillsDepositsPanel::RefreshList()
     listCtrlAccount_->RefreshList();
 }
 
-void mmBillsDepositsPanel::OnFilterTransactions(wxMouseEvent& event)
+void mmBillsDepositsPanel::OnFilterTransactions(wxCommandEvent& WXUNUSED(event))
 {
 
-    int e = event.GetEventType();
-
-    wxBitmap bitmapFilterIcon(mmBitmap(png::RIGHTARROW));
-
-    if (e == wxEVT_LEFT_DOWN)
+    if (transFilterDlg_->ShowModal() == wxID_OK && transFilterDlg_->isSomethingSelected())
     {
-
-        if (transFilterDlg_->ShowModal() == wxID_OK && transFilterDlg_->somethingSelected())
-        {
-            transFilterActive_ = true;
-            bitmapFilterIcon = mmBitmap(png::RIGHTARROW_ACTIVE);
-        }
-        else
-        {
-            transFilterActive_ = false;
-        }
-
-    } else {
-        if (transFilterActive_ == false) return;
-        transFilterActive_ = false;
+        transFilterActive_ = true;
+        m_bitmapTransFilter->SetBitmap(mmBitmap(png::RIGHTARROW_ACTIVE));
     }
-
-    wxImage pic = bitmapFilterIcon.ConvertToImage();
-    bitmapTransFilter_->SetBitmap(pic);
+    else 
+    {
+        transFilterActive_ = false;
+        m_bitmapTransFilter->SetBitmap(mmBitmap(png::RIGHTARROW));
+    }
 
     initVirtualListControl();
 }

@@ -43,7 +43,7 @@ mmAppStartDialog::mmAppStartDialog(wxWindow* parent, const wxString& name)
     , m_buttonClose(nullptr)
     , m_buttonExit(nullptr)
 {
-    wxString caption = wxString::Format(_("%1$s - %2$s"), mmex::getProgramName(), mmex::getTitleProgramVersion());
+    wxString caption = wxString::Format("%s - %s", mmex::getProgramName(), mmex::getTitleProgramVersion());
     long style = wxCAPTION | wxRESIZE_BORDER | wxSYSTEM_MENU | wxCLOSE_BOX;
     Create(parent, wxID_ANY, caption, wxDefaultPosition, wxDefaultSize, style, name);
     SetMinSize(wxSize(400, 300));
@@ -162,24 +162,7 @@ void mmAppStartDialog::SetCloseButtonToExit()
 
 void mmAppStartDialog::OnButtonAppstartHelpClick( wxCommandEvent& /*event*/ )
 {
-    mmex::EDocFile helpFileIndex_ = mmex::HTML_INDEX;
-    wxFileName helpIndexFile(mmex::getPathDoc(helpFileIndex_));
-    wxString url = "file://";
-
-    const auto lang_code = Option::instance().getLanguageISO6391();
-    if (lang_code != "en") {
-        helpIndexFile.AppendDir(lang_code);
-    }
-
-    if (helpIndexFile.FileExists()) // Load the help file for the given language
-    {
-        url << (helpIndexFile.GetPathWithSep() + helpIndexFile.GetFullName());
-    }
-    else // load the default help file
-    {
-        url << mmex::getPathDoc(helpFileIndex_);
-    }
-    wxLaunchDefaultBrowser(url);
+    wxLaunchDefaultBrowser(mmex::getPathDoc(mmex::HTML_INDEX));
 }
 
 void mmAppStartDialog::OnButtonAppstartWebsiteClick( wxCommandEvent& /*event*/ )

@@ -60,17 +60,18 @@ private:
 
     mmAttachmentDialog() : m_attachment_id(-1) {}
 
-    void Create(wxWindow* parent, const wxString& name = "mmAttachmentDialog");
+    void Create(wxWindow* parent, const wxString& name);
     void CreateControls();
     void fillControls();
 
-    void AddAttachment();
+    void AddAttachment(wxString Path = "");
     void OpenAttachment();
     void EditAttachment();
     void DeleteAttachment();
     void OnCancel(wxCommandEvent& /*event*/);
     void OnOk(wxCommandEvent& /*event*/);
 
+    void OnDropFiles(wxDropFilesEvent& event);
     void OnListItemSelected(wxDataViewEvent& event);
     void OnMenuSelected(wxCommandEvent& event);
     void OnItemRightClick(wxDataViewEvent& event);

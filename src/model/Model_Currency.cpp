@@ -24,8 +24,10 @@
 #include "option.h"
 #include <wx/numformatter.h>
 
+const double ROUNDING_ERROR_f32 = 0.000001;
+
 Model_Currency::Model_Currency()
-: Model<DB_Table_CURRENCYFORMATS_V1>()
+    : Model<DB_Table_CURRENCYFORMATS_V1>()
 {
 }
 
@@ -153,8 +155,7 @@ wxString Model_Currency::toCurrency(double value, const Data* currency, int prec
 {
     precision = precision >= 0 ? precision : (currency ? log10(currency->SCALE) : 2);
     wxString d2s = toString(value, currency, precision);
-    if (currency)
-    {
+    if (currency) {
         d2s.Prepend(currency->PFX_SYMBOL);
         d2s.Append(currency->SFX_SYMBOL);
     }
@@ -165,8 +166,9 @@ wxString Model_Currency::os_group_separator()
 {
     wxString sys_thousand_separator = " ";
     wxChar sep = ' ';
-    if (wxNumberFormatter::GetThousandsSeparatorIfUsed(&sep))
+    if (wxNumberFormatter::GetThousandsSeparatorIfUsed(&sep)) {
         sys_thousand_separator = wxString::Format("%c", sep);
+    }
     return sys_thousand_separator;
 }
 
@@ -175,8 +177,11 @@ wxString Model_Currency::toStringNoFormatting(double value, const Data* currency
     precision = (precision >= 0 ? precision : (currency ? log10(currency->SCALE) : 2));
     int style = wxNumberFormatter::Style_None;
     wxString s = wxNumberFormatter::ToString(value, precision, style);
-    if (s == "-0.00") s = "0.00";
-    else if (s == "-0.0") s = "0.0";
+
+    if (value >= -ROUNDING_ERROR_f32 && s.Mid(0, 1) == "-") {
+        s = s.Mid(1);
+    }
+
     return s;
 }
 wxString Model_Currency::toString(double value, const Data* currency, int precision)
@@ -192,9 +197,10 @@ wxString Model_Currency::toString(double value, const Data* currency, int precis
         s.Replace("\t", currency->GROUP_SEPARATOR);
         s.Replace("\x05", currency->DECIMAL_POINT);
     }
-    
-    if (value >= 0.00 && s.SubString(1, 1) == "-")
-        s.Remove(1);
+
+    if (value >= -ROUNDING_ERROR_f32 && s.Mid(0, 1) == "-") {
+        s = s.Mid(1);
+    }
 
     return s;
 }
@@ -220,9 +226,10 @@ const wxString Model_Currency::fromString2Default(const wxString &s, const Data*
         if (!c->DECIMAL_POINT.empty())
             str.Replace(c->DECIMAL_POINT, wxNumberFormatter::GetDecimalSeparator());
 
-        wxRegEx pattern(R"([^0-9.+-/*()])");
+        wxRegEx pattern(R"([^0-9.,+-/*()])");
         pattern.ReplaceAll(&str, wxEmptyString);
     }
+    wxLogDebug("%s -> %s", s, str);
     return str;
 }
 

@@ -41,8 +41,8 @@ public:
 
     // set and save the option: m_language
     wxLanguage getLanguageID(bool get_db = false);
-	// get 2-letter ISO 639-1 code
-	const wxString getLanguageISO6391(bool get_db = false);
+    // get 2-letter ISO 639-1 code
+    const wxString getLanguageISO6391(bool get_db = false);
     void setLanguage(wxLanguage& language);
 
     // set and save the option: m_userNameString
@@ -71,9 +71,6 @@ public:
 
     void BudgetIncludeTransfers(bool value);
     bool BudgetIncludeTransfers();
-    
-    void BudgetSetupWithoutSummaries(bool value);
-    bool BudgetSetupWithoutSummaries();
 
     void BudgetReportWithSummaries(bool value);
     bool BudgetReportWithSummaries();
@@ -103,17 +100,20 @@ public:
     void setBudgetDateOffset(wxDateTime& date) const;
 
     /* stored value in percantage for scale html font and other objects */
-    void HtmlFontSize(int value);
-    int HtmlFontSize();
+    void setHTMLFontSizes(int value);
+    int getHtmlFontSize();
 
-    void IconSize(int value);
-    int IconSize();
+    void setIconSize(int value);
+    int getIconSize();
 
     int AccountImageId(int account_id, bool def = false);
-	bool getSendUsageStatistics() const;
+    bool getSendUsageStatistics() const;
 
     void IgnoreFutureTransactions(bool value);
-	bool getIgnoreFutureTransactions() const;
+    bool getIgnoreFutureTransactions() const;
+
+    void CurrencyHistoryEnabled(bool value);
+    bool getCurrencyHistoryEnabled() const;
 
 private:
     wxString m_dateFormat;
@@ -122,11 +122,11 @@ private:
     wxString m_financialYearStartDayString;
     wxString m_financialYearStartMonthString;
     int m_baseCurrency;
+    bool m_currencyHistoryEnabled;
 
     bool m_databaseUpdated;
     bool m_budgetFinancialYears;            //INIDB_BUDGET_FINANCIAL_YEARS
     bool m_budgetIncludeTransfers;          //INIDB_BUDGET_INCLUDE_TRANSFERS
-    bool m_budgetSetupWithoutSummaries;     //INIDB_BUDGET_SETUP_WITHOUT_SUMMARY
     bool m_budgetReportWithSummaries;       //INIDB_BUDGET_SUMMARY_WITHOUT_CATEG
     bool m_ignoreFutureTransactions;        //INIDB_IGNORE_FUTURE_TRANSACTIONS
 
@@ -157,9 +157,14 @@ inline bool Option::getSendUsageStatistics() const
 #endif
 }
 
+inline bool Option::getCurrencyHistoryEnabled() const
+{
+    return m_currencyHistoryEnabled;
+}
+
 inline bool Option::getIgnoreFutureTransactions() const
 {
-	return m_ignoreFutureTransactions;
+    return m_ignoreFutureTransactions;
 }
 
 inline int Option::getBudgetDaysOffset() const
