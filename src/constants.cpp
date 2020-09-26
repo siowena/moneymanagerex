@@ -1,16 +1,13 @@
 /*******************************************************
 Copyright (C) 2009 VaDiM
-
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
-
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
-
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
@@ -23,29 +20,28 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "rapidjson/rapidjson.h"
 #include "db/DB_Upgrade.h"
 
-/*************************************************************************
- MMEX_VERSION
- Update the version definition for the program as follows:
- Version Format = MAJOR.MINOR.PATCH, increment the:
- 1. MAJOR version when you make incompatible API changes,
- 2. MINOR version when you add functionality in a backwards-compatible manner, and
- 3. PATCH version when you make backwards-compatible bug fixes.
- Ref: http://semver.org
-
- Alpha, Beta, RC  = -1 (Stable) won't add any suffix
- Alpha, Beta, RC  = 0 (Unstable) will add suffix to version without number
- Alpha, Beta, RC  > 0 (Unstable) will add suffix to version with number
-
- For Internet Format for update checking read in util.cpp
- *************************************************************************/
+ /*************************************************************************
+  MMEX_VERSION
+  Update the version definition for the program as follows:
+  Version Format = MAJOR.MINOR.PATCH, increment the:
+  1. MAJOR version when you make incompatible API changes,
+  2. MINOR version when you add functionality in a backwards-compatible manner, and
+  3. PATCH version when you make backwards-compatible bug fixes.
+  Ref: http://semver.org
+  Alpha, Beta, RC  = -1 (Stable) won't add any suffix
+  Alpha, Beta, RC  = 0 (Unstable) will add suffix to version without number
+  Alpha, Beta, RC  > 0 (Unstable) will add suffix to version with number
+  For Internet Format for update checking read in util.cpp
+  *************************************************************************/
 const int mmex::version::Major = 1;
 const int mmex::version::Minor = 3;
 const int mmex::version::Patch = 6;
-const int mmex::version::Alpha = 1;
-const int mmex::version::Beta  = -1;
-const int mmex::version::RC    = -1;
+const int mmex::version::Alpha = -1;
+const int mmex::version::Beta = -1;
+const int mmex::version::RC = 1;
+
 const wxString mmex::version::string = mmex::version::generateProgramVersion(mmex::version::Major, mmex::version::Minor, mmex::version::Patch
-    ,mmex::version::Alpha, mmex::version::Beta, mmex::version::RC);
+    , mmex::version::Alpha, mmex::version::Beta, mmex::version::RC);
 
 bool mmex::version::isStable()
 {
@@ -80,20 +76,20 @@ const wxSizerFlags g_flagsExpandBorder1 = wxSizerFlags().Align(wxALIGN_LEFT | wx
 
 const wxString g_CancelLabel =
 #if defined(__APPLE__)
-    wxTRANSLATE("Cancel");
+wxTRANSLATE("Cancel");
 #else
-    wxTRANSLATE("&Cancel ");
+wxTRANSLATE("&Cancel ");
 #endif
 const wxString g_CloseLabel =
 #if defined(__APPLE__)
-    wxTRANSLATE("Close");
+wxTRANSLATE("Close");
 #else
-    wxTRANSLATE("&Close ");
+wxTRANSLATE("&Close ");
 #endif
 //---------------------------------------------------------------------------
 int mmex::MIN_DATAVERSION = 2;
 const wxString mmex::DATAVERSION = "3";
-const wxString mmex::DEFDATEFORMAT =  "%Y-%m-%d"; //ISO 8601
+const wxString mmex::DEFDATEFORMAT = "%Y-%m-%d"; //ISO 8601
 const wxString mmex::DEFDELIMTER = ",";
 
 const wxString mmex::getProgramName()
@@ -116,7 +112,7 @@ const wxString mmex::getProgramCopyright()
 
 int mmex::version::getDbLatestVersion()
 {
-	return dbLatestVersion;
+    return dbLatestVersion;
 }
 
 const wxString mmex::getCaption(const wxString& caption)
@@ -132,7 +128,7 @@ const wxString mmex::weblink::addReferralToURL(const wxString& BaseURL, const wx
     to divide direct access from access through desktop app links
     https://support.google.com/analytics/answer/1033867?hl=en
     */
-    
+
     const wxString url = wxString::Format("%s?utm_campaign=Application_Desktop&utm_source=%s&utm_medium=MMEX_v%s"
         , BaseURL, CampSource, mmex::version::string);
 
@@ -179,33 +175,36 @@ const wxString mmex::weblink::YahooQuotesHistory = "https://query1.finance.yahoo
 /* End namespace weblink */
 
 const wxString LANGUAGE_PARAMETER = "LANGUAGE";
+const wxString INIDB_USE_CURRENCY_HISTORY = "USECURRENCYHISTORY";
 const wxString INIDB_USE_TRANSACTION_SOUND = "USETRANSSOUND";
 const wxString INIDB_USE_ORG_DATE_COPYPASTE = "USEORIGDATEONCOPYPASTE";
 const wxString INIDB_SEND_USAGE_STATS = "SENDUSAGESTATS";
 
-const wxString VIEW_TRANS_ALL_STR            = wxTRANSLATE("View All Transactions");
-const wxString VIEW_TRANS_TODAY_STR          = wxTRANSLATE("View Today");
-const wxString VIEW_TRANS_CURRENT_MONTH_STR  = wxTRANSLATE("View Current Month");
-const wxString VIEW_TRANS_LAST_30_DAYS_STR   = wxTRANSLATE("View Last 30 days");
-const wxString VIEW_TRANS_LAST_90_DAYS_STR   = wxTRANSLATE("View Last 90 days");
-const wxString VIEW_TRANS_LAST_MONTH_STR     = wxTRANSLATE("View Last Month");
-const wxString VIEW_TRANS_LAST_3MONTHS_STR   = wxTRANSLATE("View Last 3 Months");
-const wxString VIEW_TRANS_LAST_12MONTHS_STR  = wxTRANSLATE("View Last 12 Months");
-const wxString VIEW_TRANS_CURRENT_YEAR_STR   = wxTRANSLATE("View Current Year");
-const wxString VIEW_TRANS_CURRENT_FIN_YEAR_STR = wxTRANSLATE("View Current Financial Year");
-const wxString VIEW_TRANS_LAST_YEAR_STR      = wxTRANSLATE("View Last Year");
-const wxString VIEW_TRANS_LAST_FIN_YEAR_STR  = wxTRANSLATE("View Last Financial Year");
+const wxString VIEW_TRANS_FILTER_DIALOG_STR = wxTRANSLATE("Advanced Filter");
+const wxString VIEW_TRANS_ALL_STR = wxTRANSLATE("View All Transactions");
+const wxString VIEW_TRANS_TODAY_STR = wxTRANSLATE("View Today");
+const wxString VIEW_TRANS_CURRENT_MONTH_STR = wxTRANSLATE("View Current Month");
+const wxString VIEW_TRANS_LAST_30_DAYS_STR = wxTRANSLATE("View Last 30 days");
+const wxString VIEW_TRANS_LAST_90_DAYS_STR = wxTRANSLATE("View Last 90 days");
+const wxString VIEW_TRANS_LAST_MONTH_STR = wxTRANSLATE("View Last Month");
+const wxString VIEW_TRANS_LAST_3MONTHS_STR = wxTRANSLATE("View Last 3 Months");
+const wxString VIEW_TRANS_LAST_12MONTHS_STR = wxTRANSLATE("View Last 12 Months");
+const wxString VIEW_TRANS_CURRENT_YEAR_STR = wxTRANSLATE("View Current Year");
+const wxString VIEW_TRANS_CRRNT_FIN_YEAR_STR = wxTRANSLATE("View Current Financial Year");
+const wxString VIEW_TRANS_LAST_YEAR_STR = wxTRANSLATE("View Last Year");
+const wxString VIEW_TRANS_LAST_FIN_YEAR_STR = wxTRANSLATE("View Last Financial Year");
+const wxString VIEW_TRANS_SINCE_STATEMENT_STR = wxTRANSLATE("View Since Statement Date");
 
 const wxString VIEW_ACCOUNTS_ALL_STR = wxTRANSLATE("ALL");
 const wxString VIEW_ACCOUNTS_OPEN_STR = wxTRANSLATE("Open");
 const wxString VIEW_ACCOUNTS_CLOSED_STR = wxTRANSLATE("Closed");
 const wxString VIEW_ACCOUNTS_FAVORITES_STR = wxTRANSLATE("Favorites");
 
-const wxString INIDB_BUDGET_FINANCIAL_YEARS       = "BUDGET_FINANCIAL_YEARS";
-const wxString INIDB_BUDGET_INCLUDE_TRANSFERS     = "BUDGET_INCLUDE_TRANSFERS";
+const wxString INIDB_BUDGET_FINANCIAL_YEARS = "BUDGET_FINANCIAL_YEARS";
+const wxString INIDB_BUDGET_INCLUDE_TRANSFERS = "BUDGET_INCLUDE_TRANSFERS";
 const wxString INIDB_BUDGET_SETUP_WITHOUT_SUMMARY = "BUDGET_SETUP_WITHOUT_SUMMARY";
 const wxString INIDB_BUDGET_SUMMARY_WITHOUT_CATEG = "BUDGET_SUMMARY_WITHOUT_CATEGORIES";
-const wxString INIDB_IGNORE_FUTURE_TRANSACTIONS   = "IGNORE_FUTURE_TRANSACTIONS";
+const wxString INIDB_IGNORE_FUTURE_TRANSACTIONS = "IGNORE_FUTURE_TRANSACTIONS";
 
 const wxString ATTACHMENTS_FOLDER_DOCUMENTS = "%DOCUMENTS%";
 const wxString ATTACHMENTS_FOLDER_DATABASE = "%DATABASE%";
